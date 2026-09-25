@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AREAS } from "../../src/areas";
 import { bedroomGroup, pool } from "./data";
+import { audRate } from "./fx";
 import type { ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
@@ -29,7 +30,7 @@ export async function loadExplore(): Promise<ExploreData | null> {
   if (!snapshot) return null;
 
   const [ls, cals, prices, changes] = await Promise.all([
-    pool.query("select id, name, area, bedrooms from listings where platform = 'airbnb' and active"),
+    pool.query("select id, name, kind, area, bedrooms, rating from listings where platform = 'airbnb' and active"),
     pool.query(
       "select listing_id, from_date, nights, min_stay from calendar_snapshots where snapshot_date = $1 and platform = 'airbnb'",
       [snapshot],
@@ -68,6 +69,9 @@ export async function loadExplore(): Promise<ExploreData | null> {
       id: l.id,
       name: l.name,
       area: l.area,
+      kind: l.kind,
+      bedrooms: l.bedrooms,
+      rating: l.rating,
       beds: bedroomGroup(l.bedrooms),
       dormant: nights.length > 0 && blocked / nights.length > 0.95,
       nights,
@@ -92,6 +96,7 @@ export async function loadExplore(): Promise<ExploreData | null> {
   }
 
   const present = new Set(listings.map((l) => l.area));
+  const fx = await audRate();
   return {
     snapshot,
     from,
@@ -102,5 +107,7 @@ export async function loadExplore(): Promise<ExploreData | null> {
     newBookings,
     comparedTo: changes.rows[0]?.compared_to ?? null,
     events: loadEvents(),
+    audRate: fx.rate,
+    rateDate: fx.date,
   };
 }

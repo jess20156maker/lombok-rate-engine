@@ -14,14 +14,14 @@ import {
   type WindowKey,
 } from "@/lib/explore-calc";
 import type { ExploreData } from "@/lib/explore-types";
+import { fmt, type Currency } from "@/lib/money";
 import { HBars, MonthBars } from "./bars";
 import { DayPanel } from "./day-panel";
 import { FilterBar } from "./filter-bar";
 import { TooltipProvider } from "./tooltip";
+import { TopPlaces } from "./top-places";
 import { YearHeatmap, occFill } from "./year-heatmap";
 
-const rp = (n: number | null) =>
-  n == null ? "–" : n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(1)}m` : `Rp ${Math.round(n / 1000)}k`;
 const pct = (v: number | null) => (v == null ? "–" : `${Math.round(v * 100)}%`);
 const monthShort = (m: string) =>
   new Date(m + "-01T00:00:00Z").toLocaleString("en-GB", { month: "short", timeZone: "UTC" }) + ` ’${m.slice(2, 4)}`;
@@ -30,7 +30,7 @@ const monthLong = (m: string) =>
 const dayLabel = (d: string) =>
   new Date(d + "T00:00:00Z").toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
-export type InitialState = Filters & { day: number | null };
+export type InitialState = Filters & { day: number | null; currency: Currency | null };
 
 function Card({ title, sub, children, className = "" }: { title: string; sub?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -60,6 +60,30 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
     includeDormant: initial.includeDormant,
   });
   const [day, setDay] = useState<number | null>(initial.day);
+  const [currency, setCurrencyState] = useState<Currency>(initial.currency ?? "IDR");
+  // Without a currency in the link, use the viewer's last choice.
+  useEffect(() => {
+    if (initial.currency) return;
+    try {
+      const saved = localStorage.getItem("currency");
+      if (saved === "AUD" || saved === "IDR") setCurrencyState(saved);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [initial.currency]);
+  const setCurrency = (c: Currency) => {
+    setCurrencyState(c);
+    try {
+      localStorage.setItem("currency", c);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  const money = useMemo(() => {
+    const m = { currency, audRate: data.audRate, rateDate: data.rateDate };
+    return (n: number | null) => fmt(n, m);
+  }, [currency, data.audRate, data.rateDate]);
+  const rateNote = `A$1 = Rp ${Math.round(data.audRate).toLocaleString("en-AU")} (European Central Bank, ${data.rateDate})`;
 
   const idx = useMemo(() => filterListings(data, filters), [data, filters]);
   const stats = useMemo(() => dayStats(data, idx), [data, idx]);
@@ -92,8 +116,8 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
   const selected = day ?? summary.busiest?.i ?? null;
   const selectedStat = selected != null ? stats[selected] : null;
   const insights = useMemo(
-    () => (selectedStat ? insightsFor(selectedStat, stats, data.events) : []),
-    [selectedStat, stats, data.events],
+    () => (selectedStat ? insightsFor(selectedStat, stats, data.events, money) : []),
+    [selectedStat, stats, data.events, money],
   );
 
   const upcoming = useMemo(() => {
@@ -120,9 +144,10 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
     if (filters.beds.length) p.set("beds", filters.beds.join(","));
     if (filters.window !== "90") p.set("when", filters.window);
     if (filters.includeDormant) p.set("dormant", "1");
+    if (currency === "AUD") p.set("cur", "AUD");
     if (day != null) p.set("day", stats[day]?.date ?? "");
     return p.toString();
-  }, [filters, day, stats]);
+  }, [filters, day, stats, currency]);
   useEffect(() => {
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }, [query]);
@@ -144,6 +169,9 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
         areas={data.areas}
         areaCounts={areaCounts}
         months={months.map((m) => ({ key: m.month, label: monthLong(m.month) }))}
+        currency={currency}
+        setCurrency={setCurrency}
+        rateNote={rateNote}
       />
 
       <div className="mb-6">
@@ -159,7 +187,11 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Nights booked" value={pct(summary.occ)} sub="average share of places taken" />
         <Tile label="Nearly sold-out nights" value={summary.soldOutDays} sub={`of ${summary.days}, 90%+ booked`} />
-        <Tile label="Typical nightly price" value={rp(summary.price)} sub="median, before taxes" />
+        <Tile
+          label="Typical nightly price"
+          value={money(summary.price)}
+          sub={currency === "AUD" ? `median, before taxes · ${rateNote}` : "median, before taxes"}
+        />
         <Tile
           label="Busiest night"
           value={summary.busiest ? dayLabel(summary.busiest.date) : "–"}
@@ -169,7 +201,7 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
 
       <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
         <Card title="How booked every night is" sub="Darker = fewer places left. Faded days are outside the time window. Hover for numbers; click for the reasons.">
-          <YearHeatmap stats={stats} range={range} events={data.events} selected={selected} onSelect={setDay} />
+          <YearHeatmap stats={stats} range={range} events={data.events} selected={selected} onSelect={setDay} money={money} />
         </Card>
         <div className="lg:sticky lg:top-28 lg:self-start">
           <DayPanel
@@ -198,7 +230,7 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
                 <div>
                   <div className="font-semibold">{pct(a.occ)} booked</div>
                   <div className="opacity-80">
-                    {a.key} · {a.listings} places · median {rp(a.price)}
+                    {a.key} · {a.listings} places · median {money(a.price)}
                   </div>
                 </div>
               ),
@@ -217,13 +249,13 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
               key: b.key,
               label: `${b.key} bedroom${b.key === "1" ? "" : "s"}`,
               value: b.occ,
-              sub: rp(b.price),
+              sub: money(b.price),
               active: filters.beds.length === 0 || filters.beds.includes(b.key),
               tip: () => (
                 <div>
                   <div className="font-semibold">{pct(b.occ)} booked</div>
                   <div className="opacity-80">
-                    {b.listings} places · median {rp(b.price)} a night
+                    {b.listings} places · median {money(b.price)} a night
                   </div>
                 </div>
               ),
@@ -234,6 +266,15 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
           />
         </Card>
       </div>
+
+      <TopPlaces
+        data={data}
+        idx={idx}
+        range={range}
+        areas={filters.areas.length ? data.areas.filter((a) => filters.areas.includes(a)) : data.areas}
+        money={money}
+        windowLabel={windowLabel ?? ""}
+      />
 
       <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
         <Card title="Month by month" sub="How full each month already is. Click a month to zoom in.">

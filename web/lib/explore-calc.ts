@@ -187,10 +187,14 @@ export type Insight = {
 };
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
-const rp = (n: number) => (n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(1)}m` : `Rp ${Math.round(n / 1000)}k`);
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function insightsFor(day: DayStat, stats: DayStat[], events: MarketEvent[]): Insight[] {
+export function insightsFor(
+  day: DayStat,
+  stats: DayStat[],
+  events: MarketEvent[],
+  money: (n: number) => string,
+): Insight[] {
   const out: Insight[] = [];
   if (day.occ == null) return out;
   const occs = stats.map((d) => d.occ).filter((x): x is number => x != null);
@@ -281,10 +285,10 @@ export function insightsFor(day: DayStat, stats: DayStat[], events: MarketEvent[
         kind: "price",
         tone: diff > 0 ? "up" : "down",
         title: `Prices ${diff > 0 ? "up" : "down"} ${pct(Math.abs(diff))} on the usual rate`,
-        detail: `Median ${rp(here.price)} a night vs ${rp(typical)} typical${when}, from ${here.priceN} open listings.`,
+        detail: `Median ${money(here.price)} a night vs ${money(typical)} typical${when}, from ${here.priceN} open listings.`,
       });
     } else {
-      out.push({ kind: "price", tone: "neutral", title: "Prices are about normal", detail: `Median ${rp(here.price)} a night${when}.` });
+      out.push({ kind: "price", tone: "neutral", title: "Prices are about normal", detail: `Median ${money(here.price)} a night${when}.` });
     }
   }
 
@@ -321,4 +325,55 @@ export function insightsFor(day: DayStat, stats: DayStat[], events: MarketEvent[
   }
 
   return out;
+}
+
+// ---- Top places ----------------------------------------------------------------
+
+export type PlaceRank = {
+  li: number;
+  occ: number; // share of window nights blocked
+  bookedNights: number;
+  nights: number;
+  price: number | null; // this place's median per-night price (window samples, else any)
+  value: number | null; // bookedNights x price: rough value of the booked nights
+  fullyBlocked: boolean; // 100% blocked across a long window: may be closed, not booked
+};
+
+export type RankBy = "occ" | "value" | "price";
+
+export function rankPlaces(
+  data: ExploreData,
+  idx: number[],
+  [start, end]: [number, number],
+  by: RankBy,
+): PlaceRank[] {
+  // Each place's own price samples, split into in-window and any-time.
+  const inWin = new Map<number, number[]>();
+  const any = new Map<number, number[]>();
+  for (const [di, arr] of Object.entries(data.prices)) {
+    const d = Number(di);
+    for (const [li, p] of arr) {
+      any.set(li, [...(any.get(li) ?? []), p]);
+      if (d >= start && d < end) inWin.set(li, [...(inWin.get(li) ?? []), p]);
+    }
+  }
+  const rows: PlaceRank[] = idx.map((li) => {
+    const l = data.listings[li];
+    const slice = l.nights.slice(start, end);
+    const booked = [...slice].filter((c) => c === "0").length;
+    const price = median(inWin.get(li) ?? []) ?? median(any.get(li) ?? []);
+    const occ = slice.length ? booked / slice.length : 0;
+    return {
+      li,
+      occ,
+      bookedNights: booked,
+      nights: slice.length,
+      price,
+      value: price != null ? booked * price : null,
+      fullyBlocked: occ === 1 && slice.length >= 30,
+    };
+  });
+  const key = (r: PlaceRank) => (by === "occ" ? r.occ : by === "value" ? (r.value ?? -1) : (r.price ?? -1));
+  // Ties on occupancy break toward the pricier place (it earns more for the same nights).
+  return rows.sort((a, b) => key(b) - key(a) || (b.price ?? 0) - (a.price ?? 0));
 }

@@ -23,6 +23,7 @@ export default async function ExplorePage(props: PageProps<"/">) {
     window: (validWindow ? when : "90") as WindowKey,
     includeDormant: one(sp.dormant) === "1",
     day: dayIdx != null && dayIdx >= 0 && dayIdx < data.days ? dayIdx : null,
+    currency: one(sp.cur) === "AUD" ? "AUD" : one(sp.cur) === "IDR" ? "IDR" : null,
   };
 
   return <Explore data={data} initial={initial} />;

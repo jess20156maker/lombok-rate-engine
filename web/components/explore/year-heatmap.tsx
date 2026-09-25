@@ -18,7 +18,6 @@ export function occInk(occ: number | null) {
 }
 
 const WEEK = ["M", "T", "W", "T", "F", "S", "S"];
-const rp = (n: number) => (n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(1)}m` : `Rp ${Math.round(n / 1000)}k`);
 
 /** Events worth a marker on the calendar: short, dated events and holidays, not seasons, school terms or month-long periods. */
 function markerEvents(events: MarketEvent[], date: string) {
@@ -34,7 +33,9 @@ export function YearHeatmap({
   events,
   selected,
   onSelect,
+  money,
 }: {
+  money: (n: number) => string;
   stats: DayStat[];
   range: [number, number];
   events: MarketEvent[];
@@ -74,7 +75,7 @@ export function YearHeatmap({
         </div>
         <div className="opacity-80">
           {d.total - d.blocked} of {d.total} places open
-          {d.price != null && d.priceN >= 3 && <> · median {rp(d.price)}</>}
+          {d.price != null && d.priceN >= 3 && <> · median {money(d.price)}</>}
         </div>
         {ev.slice(0, 3).map((e) => (
           <div key={e.name} className="flex items-center gap-1.5">
@@ -126,7 +127,7 @@ export function YearHeatmap({
                   <td className="py-1 pr-4">{d.date}</td>
                   <td className="py-1 pr-4">{d.occ == null ? "–" : `${Math.round(d.occ * 100)}%`}</td>
                   <td className="py-1 pr-4">{d.total - d.blocked}</td>
-                  <td className="py-1 pr-4">{d.price != null && d.priceN >= 3 ? rp(d.price) : "–"}</td>
+                  <td className="py-1 pr-4">{d.price != null && d.priceN >= 3 ? money(d.price) : "–"}</td>
                   <td className="py-1 text-muted">{eventsOn(events, d.date).map((e) => e.name).join(", ")}</td>
                 </tr>
               ))}

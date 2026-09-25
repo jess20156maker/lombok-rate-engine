@@ -4,6 +4,9 @@ export type ExploreListing = {
   id: string;
   name: string;
   area: string;
+  kind: string; // "Villa in Praya Barat"
+  bedrooms: number | null;
+  rating: string | null; // "4.93 (76)"
   beds: string; // bedroom group: "1" | "2" | "3" | "4+"
   dormant: boolean;
   /** One char per night from ExploreData.from: "1" open, "c" open no check-in, "0" blocked. */
@@ -38,4 +41,6 @@ export type ExploreData = {
   newBookings: Record<number, number[]>;
   comparedTo: string | null;
   events: MarketEvent[];
+  audRate: number; // IDR per AUD
+  rateDate: string;
 };
