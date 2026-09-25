@@ -110,3 +110,18 @@ create table if not exists watch_prices (
 );
 create index if not exists watch_prices_listing on watch_prices (platform, listing_id, checkin);
 alter table watch_prices enable row level security;
+
+-- Booking.com support.
+alter table listings add column if not exists slug text; -- booking.com/hotel/id/<slug>.html
+-- Booking.com shows prices with taxes and fees; Airbnb search prices are before taxes.
+alter table price_samples add column if not exists includes_taxes boolean not null default false;
+
+-- The same property listed on both platforms (matched by location and name).
+create table if not exists listing_links (
+  airbnb_id   text not null,
+  booking_id  text not null,
+  distance_m  real not null,
+  name_score  real not null,
+  primary key (airbnb_id, booking_id)
+);
+alter table listing_links enable row level security;

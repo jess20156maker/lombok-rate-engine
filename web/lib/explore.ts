@@ -9,9 +9,10 @@ import { bedroomGroup, pool } from "./data";
 import { HOUR, MINUTE, cached } from "./cache";
 import { audRate } from "./fx";
 import { watchedIds } from "./watch";
-import type { ExploreData, ExploreListing, MarketEvent } from "./explore-types";
+import type { BookingListing, ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
+const PAYLOAD_VERSION = 3;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
@@ -31,14 +32,26 @@ export async function loadExplore(): Promise<ExploreData | null> {
   });
   if (!snapshot) return null;
   // The market payload is shared; the watchlist changes whenever you star a villa, so it's always fresh.
-  const [base, watched] = await Promise.all([
-    cached(`explore:${snapshot}`, HOUR, () => buildExplore(snapshot)),
+  // Bump PAYLOAD_VERSION when the payload shape changes, so stale cached copies are ignored.
+  const base = await cached(`explore:v${PAYLOAD_VERSION}:${snapshot}`, HOUR, () => buildExplore(snapshot));
+  // Booking.com and the cross-platform links land in stages overnight, and the
+  // watchlist changes whenever you star a villa, so these stay fresher.
+  const [booking, watched] = await Promise.all([
+    cached(`booking:v${PAYLOAD_VERSION}:${snapshot}`, 10 * MINUTE, () => loadBooking(base.from, base.days)),
     watchedIds(),
   ]);
-  return { ...base, watched: [...watched] };
+  const slugByAirbnb = new Map(
+    booking.listings.filter((l) => l.airbnbId).map((l) => [l.airbnbId!, l.slug] as [string, string]),
+  );
+  return {
+    ...base,
+    listings: base.listings.map((l) => ({ ...l, bookingSlug: slugByAirbnb.get(l.id) ?? null })),
+    booking,
+    watched: [...watched],
+  };
 }
 
-async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched">> {
+async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched" | "booking">> {
 
   const [ls, cals, prices, changes] = await Promise.all([
     pool.query("select id, name, kind, area, bedrooms, rating from listings where platform = 'airbnb' and active"),
@@ -84,6 +97,7 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
       bedrooms: l.bedrooms,
       rating: l.rating,
       beds: bedroomGroup(l.bedrooms),
+      bookingSlug: null, // filled from the (fresher) Booking.com data in loadExplore
       dormant: nights.length > 0 && blocked / nights.length > 0.95,
       nights,
       minStay,
@@ -121,4 +135,40 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
     audRate: fx.rate,
     rateDate: fx.date,
   };
+}
+
+/** Booking.com: places seen in the last 30 days, and the latest night's sampled prices. */
+async function loadBooking(from: string, days: number): Promise<ExploreData["booking"]> {
+  const { rows: latest } = await pool.query("select max(snapshot_date) d from price_sample_dates where platform = 'booking'");
+  const snapshot: string | null = latest[0]?.d ?? null;
+  if (!snapshot) return { snapshot: null, listings: [], prices: {} };
+
+  const [ls, ps, links] = await Promise.all([
+    pool.query("select id, name, area, bedrooms, rating, slug from listings where platform = 'booking' and active"),
+    pool.query(
+      `select listing_id, checkin, round(total / nights)::int per_night
+         from price_samples where platform = 'booking' and snapshot_date = $1`,
+      [snapshot],
+    ),
+    pool.query("select airbnb_id, booking_id from listing_links"),
+  ]);
+  const airbnbByBooking = new Map(links.rows.map((r) => [r.booking_id as string, r.airbnb_id as string]));
+  const listings: BookingListing[] = ls.rows.map((l) => ({
+    id: l.id,
+    name: l.name,
+    area: l.area,
+    beds: bedroomGroup(l.bedrooms),
+    rating: l.rating,
+    slug: l.slug ?? "",
+    airbnbId: airbnbByBooking.get(l.id) ?? null,
+  }));
+  const index = new Map(listings.map((l, i) => [l.id, i]));
+  const prices: ExploreData["booking"]["prices"] = {};
+  for (const p of ps.rows) {
+    const li = index.get(p.listing_id);
+    const di = dayIndex(from, p.checkin);
+    if (li == null || di < 0 || di >= days) continue;
+    (prices[di] ??= []).push([li, p.per_night]);
+  }
+  return { snapshot, listings, prices };
 }

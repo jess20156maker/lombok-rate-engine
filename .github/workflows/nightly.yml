@@ -5,7 +5,12 @@ name: Nightly collection
 on:
   schedule:
     - cron: "0 17 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_booking:
+        description: "Re-collect today's Booking.com dates even if already done"
+        type: boolean
+        default: false
 
 concurrency:
   group: collection
@@ -14,7 +19,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 300
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
@@ -28,3 +33,13 @@ jobs:
       # The runner starts empty: pull listings, tiles and yesterday's calendars from Supabase.
       - run: npm run hydrate
       - run: npm run daily
+      # Booking.com needs a real browser. Runs after Airbnb so a Booking.com
+      # problem never costs the Airbnb data.
+      - name: Install headless Chromium
+        if: success() || failure()
+        run: npx playwright install --with-deps chromium-headless-shell
+      - name: Booking.com collection
+        if: success() || failure()
+        run: npm run booking
+        env:
+          BOOKING_FORCE: ${{ inputs.force_booking || false }}

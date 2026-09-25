@@ -8,6 +8,7 @@ export type ExploreListing = {
   bedrooms: number | null;
   rating: string | null; // "4.93 (76)"
   beds: string; // bedroom group: "1" | "2" | "3" | "4+"
+  bookingSlug: string | null; // also on Booking.com: booking.com/hotel/id/<slug>.html
   dormant: boolean;
   /** One char per night from ExploreData.from: "1" open, "c" open no check-in, "0" blocked. */
   nights: string;
@@ -29,6 +30,16 @@ export type MarketEvent = {
   effect?: "up" | "down";
 };
 
+export type BookingListing = {
+  id: string;
+  name: string;
+  area: string;
+  beds: string;
+  rating: string | null; // out of 10
+  slug: string;
+  airbnbId: string | null; // the same place on Airbnb, if matched
+};
+
 export type ExploreData = {
   snapshot: string; // date the calendars were collected
   from: string; // day index 0
@@ -41,6 +52,12 @@ export type ExploreData = {
   newBookings: Record<number, number[]>;
   comparedTo: string | null;
   events: MarketEvent[];
+  booking: {
+    snapshot: string | null;
+    listings: BookingListing[];
+    /** Sampled check-in dayIndex -> [bookingListingIndex, perNight incl. taxes][] (places open that night). */
+    prices: Record<number, [number, number][]>;
+  };
   watched: string[]; // listing ids on the watchlist
   audRate: number; // IDR per AUD
   rateDate: string;

@@ -26,6 +26,9 @@
   --seq-7: #0d366b;
   --seq-ink-flip: 4; /* steps >= this take light text */
   --event: #eb6834;
+  /* Categorical: slot 1 = Airbnb, slot 2 = Booking.com */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
   --tooltip-bg: #0b0b0b;
   --tooltip-ink: #ffffff;
   /* Kept for the older pages. */
@@ -62,6 +65,8 @@
     --seq-6: #86b6ef;
     --seq-7: #cde2fb;
     --event: #d95926;
+    --series-1: #3987e5;
+    --series-2: #d95926;
     --tooltip-bg: #ffffff;
     --tooltip-ink: #0b0b0b;
     --open: #16263a;

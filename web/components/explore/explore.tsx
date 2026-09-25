@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   average,
+  bookingDays,
+  bookingInsight,
   dayStats,
   filterListings,
   groupOcc,
@@ -19,6 +21,7 @@ import { HBars, MonthBars } from "./bars";
 import { DayPanel } from "./day-panel";
 import { FilterBar } from "./filter-bar";
 import { TooltipProvider } from "./tooltip";
+import { PlatformCompare } from "./platform-compare";
 import { TopPlaces } from "./top-places";
 import { YearHeatmap, occFill } from "./year-heatmap";
 
@@ -102,10 +105,20 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
   // Default the day panel to the busiest night in the window.
   const selected = day ?? summary.busiest?.i ?? null;
   const selectedStat = selected != null ? stats[selected] : null;
-  const insights = useMemo(
-    () => (selectedStat ? insightsFor(selectedStat, stats, data.events, money) : []),
-    [selectedStat, stats, data.events, money],
+  const bDays = useMemo(() => bookingDays(data, filters, stats), [data, filters, stats]);
+  const bookingInView = useMemo(
+    () =>
+      data.booking.listings.filter(
+        (l) => (!filters.areas.length || filters.areas.includes(l.area)) && (!filters.beds.length || filters.beds.includes(l.beds)),
+      ),
+    [data.booking.listings, filters.areas, filters.beds],
   );
+  const insights = useMemo(() => {
+    if (!selectedStat) return [];
+    const list = insightsFor(selectedStat, stats, data.events, money);
+    const b = bookingInsight(selectedStat, bDays, money);
+    return b ? [...list, b] : list;
+  }, [selectedStat, stats, data.events, money, bDays]);
 
   const upcoming = useMemo(() => {
     const [s, e] = range;
@@ -163,7 +176,11 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
           {scope[0].toUpperCase() + scope.slice(1)}, {windowLabel}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {idx.length} places on Airbnb · calendars collected {dayLabel(data.snapshot)}
+          {idx.length} places on Airbnb
+          {data.booking.snapshot
+            ? ` · ${bookingInView.length} on Booking.com (${bookingInView.filter((l) => l.airbnbId).length} on both)`
+            : ""}{" "}
+          · calendars collected {dayLabel(data.snapshot)}
           {data.comparedTo ? ` · bookings compared with ${dayLabel(data.comparedTo)}` : " · new-booking tracking starts after tonight's run"}
         </p>
         </div>
@@ -204,6 +221,15 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
           />
         </div>
       </div>
+
+      {data.booking.snapshot && (
+        <PlatformCompare
+          days={bDays}
+          aud={aud}
+          bookingCount={bookingInView.length}
+          bothCount={bookingInView.filter((l) => l.airbnbId).length}
+        />
+      )}
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <Card title="Beach by beach" sub={`Share of nights booked, ${windowLabel}. Click a beach to filter.`}>

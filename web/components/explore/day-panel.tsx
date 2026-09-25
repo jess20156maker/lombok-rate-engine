@@ -16,6 +16,7 @@ const ICONS: Record<Insight["kind"], string> = {
   minstay: "M5 12h14M12 5v14M8 8l-3 4 3 4m8-8l3 4-3 4",
   momentum: "M4 16l5-5 4 4 7-7m0 0h-5m5 0v5",
   timing: "M12 7v5l3 2M12 3a9 9 0 110 18 9 9 0 010-18z",
+  booking: "M4 4h16v16H4zM9 8h4a2 2 0 010 4H9zm0 4h4.5a2 2 0 010 4H9z",
 };
 
 function Icon({ kind }: { kind: Insight["kind"] }) {

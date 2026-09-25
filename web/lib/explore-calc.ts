@@ -179,7 +179,7 @@ export function eventsOn(events: MarketEvent[], date: string) {
 // ---- Insights ----------------------------------------------------------------
 
 export type Insight = {
-  kind: "event" | "holiday" | "school" | "season" | "rank" | "weekend" | "price" | "minstay" | "momentum" | "timing";
+  kind: "event" | "holiday" | "school" | "season" | "rank" | "weekend" | "price" | "minstay" | "momentum" | "timing" | "booking";
   tone: "up" | "down" | "neutral"; // pushes demand up, down, or is context
   title: string;
   detail?: string;
@@ -385,4 +385,60 @@ export function rankPlaces(
   const key = (r: PlaceRank) => (by === "occ" ? r.occ : by === "value" ? (r.value ?? -1) : (r.price ?? -1));
   // Ties on occupancy break toward the pricier place (it earns more for the same nights).
   return rows.sort((a, b) => key(b) - key(a) || (b.price ?? 0) - (a.price ?? 0));
+}
+
+// ---- Booking.com ----------------------------------------------------------------
+
+export type BookingDay = {
+  i: number;
+  date: string;
+  known: number; // Booking.com places in the selection
+  open: number; // of those, open for a 2-night stay from this date
+  full: number | null; // 1 - open/known: booked, closed, or longer minimum stay
+  price: number | null; // median per night of open places, INCLUDING taxes
+  airbnbOcc: number | null;
+  airbnbPrice: number | null; // before taxes
+};
+
+export function bookingDays(data: ExploreData, f: Filters, stats: DayStat[]): BookingDay[] {
+  const keep = data.booking.listings.map(
+    (l) => (!f.areas.length || f.areas.includes(l.area)) && (!f.beds.length || f.beds.includes(l.beds)),
+  );
+  const known = keep.filter(Boolean).length;
+  return Object.entries(data.booking.prices)
+    .map(([di, arr]) => {
+      const i = Number(di);
+      const open = arr.filter(([li]) => keep[li]);
+      return {
+        i,
+        date: dateOf(data.from, i),
+        known,
+        open: open.length,
+        full: known ? Math.max(0, 1 - open.length / known) : null,
+        price: median(open.map(([, p]) => p)),
+        airbnbOcc: stats[i]?.occ ?? null,
+        airbnbPrice: stats[i]?.priceN >= 3 ? stats[i].price : null,
+      };
+    })
+    .sort((a, b) => a.i - b.i);
+}
+
+/** A Booking.com line for the day panel, from the nearest sampled date within 3 days. */
+export function bookingInsight(day: DayStat, days: BookingDay[], money: (n: number) => string): Insight | null {
+  const near = days.filter((b) => Math.abs(b.i - day.i) <= 3).sort((a, b) => Math.abs(a.i - day.i) - Math.abs(b.i - day.i))[0];
+  if (!near || !near.known || near.full == null) return null;
+  const when =
+    near.i === day.i
+      ? ""
+      : ` (checked for ${new Date(near.date + "T00:00:00Z").toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })})`;
+  const typical = median(days.map((b) => b.full).filter((x): x is number => x != null));
+  const busier = typical != null && near.full - typical >= 0.1;
+  return {
+    kind: "booking",
+    tone: busier ? "up" : "neutral",
+    title: `On Booking.com: ${near.open} of ${near.known} places open${when}`,
+    detail:
+      (near.price != null ? `Median ${money(near.price)} a night including taxes. ` : "") +
+      (typical != null ? `Usually ${Math.round((1 - typical) * near.known)} are open on the dates we check.` : ""),
+  };
 }

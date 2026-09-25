@@ -134,6 +134,20 @@ export function TopPlaces({
                       <a href={`https://www.airbnb.com/rooms/${l.id}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">
                         Airbnb ↗
                       </a>
+                      {l.bookingSlug && (
+                        <>
+                          {" · "}
+                          <a
+                            href={`https://www.booking.com/hotel/id/${l.bookingSlug}.html`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent hover:underline"
+                            title="Also listed on Booking.com"
+                          >
+                            Booking.com ↗
+                          </a>
+                        </>
+                      )}
                     </div>
                   </div>
 

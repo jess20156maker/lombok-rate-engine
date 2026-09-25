@@ -11,7 +11,9 @@
     "sync": "tsx src/jobs/sync.ts",
     "hydrate": "tsx src/jobs/hydrate.ts",
     "check-env": "tsx src/jobs/check-env.ts",
-    "watch": "tsx src/jobs/watch.ts"
+    "watch": "tsx src/jobs/watch.ts",
+    "booking": "tsx src/jobs/booking.ts",
+    "link": "tsx src/jobs/link.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
@@ -21,6 +23,7 @@
   },
   "dependencies": {
     "dotenv": "^18.0.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "playwright": "^1.63.0"
   }
 }
