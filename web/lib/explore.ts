@@ -2,9 +2,9 @@
 // filters and aggregates itself, so every filter change is instant.
 
 import "server-only";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { AREAS } from "../../src/areas";
+// Imported (not read from disk) so it ships with the deployed app.
+import eventsFile from "../../db/events.json";
 import { bedroomGroup, pool } from "./data";
 import { HOUR, MINUTE, cached } from "./cache";
 import { audRate } from "./fx";
@@ -16,13 +16,7 @@ const PAYLOAD_VERSION = 3;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
-  const file = join(process.cwd(), "..", "db", "events.json");
-  if (!existsSync(file)) return [];
-  try {
-    return JSON.parse(readFileSync(file, "utf8")) as MarketEvent[];
-  } catch {
-    return [];
-  }
+  return eventsFile as MarketEvent[];
 }
 
 export async function loadExplore(): Promise<ExploreData | null> {
