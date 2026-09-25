@@ -1,0 +1,28 @@
+# Weekly sweep for new and removed listings. Sundays 00:00 Lombok time,
+# an hour before that night's collection.
+name: Weekly discovery
+
+on:
+  schedule:
+    - cron: "0 16 * * 6"
+  workflow_dispatch: {}
+
+concurrency:
+  group: collection
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run hydrate
+      - run: npm run discover

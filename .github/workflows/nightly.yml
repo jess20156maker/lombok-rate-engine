@@ -1,0 +1,29 @@
+# Nightly market collection. Runs at 01:00 Lombok time (17:00 UTC).
+# Needs the repository secret DATABASE_URL (Supabase Session pooler URI).
+name: Nightly collection
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The runner starts empty: pull listings, tiles and yesterday's calendars from Supabase.
+      - run: npm run hydrate
+      - run: npm run daily

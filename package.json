@@ -1,0 +1,24 @@
+{
+  "name": "lombok-rate-engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "discover": "tsx src/jobs/discover.ts",
+    "daily": "tsx src/jobs/daily.ts",
+    "typecheck": "tsc --noEmit",
+    "relabel": "tsx src/jobs/relabel.ts",
+    "db:migrate": "tsx src/jobs/migrate.ts",
+    "sync": "tsx src/jobs/sync.ts",
+    "hydrate": "tsx src/jobs/hydrate.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.3",
+    "pg": "^8.23.0"
+  }
+}

@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --ink: #1d1f1e;
+  --muted: #6b706d;
+  --line: #e4e2dc;
+  --accent: #0f766e;
+  --accent-soft: #e6f2f0;
+  /* Occupancy scale: open -> fully blocked */
+  --heat-0: #eef4f3;
+  --heat-1: #c9e3df;
+  --heat-2: #8cc5bd;
+  --heat-3: #3f9c90;
+  --heat-4: #0f5f57;
+  --open: #d9ede9;
+  --blocked: #1f6f66;
+  --nocheckin: #a7d3cc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121413;
+    --panel: #1a1d1c;
+    --ink: #e8eae8;
+    --muted: #979d9a;
+    --line: #2c302e;
+    --accent: #5eead4;
+    --accent-soft: #173330;
+    --heat-0: #1c2523;
+    --heat-1: #1f3d39;
+    --heat-2: #256058;
+    --heat-3: #2f8a7e;
+    --heat-4: #5ec7b8;
+    --open: #1f2e2b;
+    --blocked: #4fb3a6;
+    --nocheckin: #2c5c55;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Tailwind's image reset breaks Leaflet's positioned tiles. */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
