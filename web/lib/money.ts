@@ -13,6 +13,13 @@ export function fmt(n: number | null | undefined, m: Money): string {
   return n >= 1_000_000 ? `Rp ${(n / 1_000_000).toFixed(1)}m` : `Rp ${Math.round(n / 1000)}k`;
 }
 
+/** Both currencies: "A$182 · Rp 2.3m". */
+export function both(n: number | null | undefined, audRate: number): string {
+  if (n == null) return "–";
+  const m = { audRate, rateDate: "" };
+  return `${fmt(n, { ...m, currency: "AUD" })} · ${fmt(n, { ...m, currency: "IDR" })}`;
+}
+
 /** Both currencies, for tooltips: "Rp 2.3m (A$182)". */
 export function fmtBoth(n: number | null | undefined, m: Money): string {
   if (n == null) return "–";

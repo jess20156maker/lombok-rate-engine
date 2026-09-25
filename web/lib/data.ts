@@ -3,6 +3,7 @@
 
 import "server-only";
 import pg from "pg";
+import { HOUR, MINUTE, cached } from "./cache";
 
 // Return DATE columns as "YYYY-MM-DD" strings and BIGINT as numbers.
 pg.types.setTypeParser(1082, (v) => v);
@@ -38,6 +39,10 @@ type PriceSample = { listingId: string; checkin: string; nights: number; total: 
 export type ChangeEvent = { listingId: string; kind: "booking" | "owner-block" | "reopened"; checkin: string; nights: number; leadDays: number };
 
 async function loadListings(): Promise<Listing[]> {
+  return cached("listings", 10 * MINUTE, () => queryListings());
+}
+
+async function queryListings(): Promise<Listing[]> {
   const { rows } = await pool.query(
     `select platform, id, name, kind, area, lat, lng, bedrooms, rating,
             first_seen as "firstSeen", last_seen as "lastSeen", active
@@ -47,13 +52,22 @@ async function loadListings(): Promise<Listing[]> {
 }
 
 export async function snapshotDates(): Promise<string[]> {
+  return cached("snapshotDates", 2 * MINUTE, querySnapshotDates);
+}
+
+async function querySnapshotDates(): Promise<string[]> {
   const { rows } = await pool.query(
     "select distinct snapshot_date d from calendar_snapshots where platform = 'airbnb' order by 1",
   );
   return rows.map((r) => r.d);
 }
 
-async function loadSnapshot(date: string) {
+// A day's snapshot is complete once collected; reload hourly in case a run was still syncing.
+function loadSnapshot(date: string) {
+  return cached(`snapshot:${date}`, HOUR, () => querySnapshot(date));
+}
+
+async function querySnapshot(date: string) {
   const [cals, samples, done, changes] = await Promise.all([
     pool.query(
       `select listing_id, from_date, nights from calendar_snapshots where snapshot_date = $1 and platform = 'airbnb'`,

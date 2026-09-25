@@ -280,7 +280,16 @@ export function insightsFor(
       here.i === day.i
         ? ""
         : ` (prices checked for ${new Date(here.date + "T00:00:00Z").toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })})`;
-    if (Math.abs(diff) >= 0.1) {
+    // On a busy night the dearer places sell first, so the places still open skew cheap.
+    const sellOut = diff < 0 && day.occ >= 0.5;
+    if (sellOut && Math.abs(diff) >= 0.1) {
+      out.push({
+        kind: "price",
+        tone: "up",
+        title: "The pricier places are already booked",
+        detail: `The ${here.priceN} places still open ask a median ${money(here.price)} a night, below the usual ${money(typical)}${when}: what's left is the cheaper end.`,
+      });
+    } else if (Math.abs(diff) >= 0.1) {
       out.push({
         kind: "price",
         tone: diff > 0 ? "up" : "down",

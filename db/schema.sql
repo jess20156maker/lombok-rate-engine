@@ -84,3 +84,29 @@ create table if not exists market_tiles (
   primary key (platform, north, east, south, west)
 );
 alter table market_tiles enable row level security;
+
+-- Villas you've starred to follow closely.
+create table if not exists watchlist (
+  platform   text not null,
+  listing_id text not null,
+  added_at   timestamptz not null default now(),
+  note       text,
+  primary key (platform, listing_id)
+);
+alter table watchlist enable row level security;
+
+-- Daily direct price checks for watched villas: one row per check-in date looked at.
+-- available = false means the villa was booked/blocked for that stay (no price).
+create table if not exists watch_prices (
+  snapshot_date date not null,
+  platform      text not null,
+  listing_id    text not null,
+  checkin       date not null,
+  nights        smallint not null,
+  available     boolean not null,
+  total         bigint,   -- IDR, after discounts, before taxes
+  nightly       bigint,   -- IDR, listed nightly rate before discounts
+  primary key (snapshot_date, platform, listing_id, checkin, nights)
+);
+create index if not exists watch_prices_listing on watch_prices (platform, listing_id, checkin);
+alter table watch_prices enable row level security;

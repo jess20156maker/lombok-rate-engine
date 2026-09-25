@@ -14,7 +14,7 @@ import {
   type WindowKey,
 } from "@/lib/explore-calc";
 import type { ExploreData } from "@/lib/explore-types";
-import { fmt, type Currency } from "@/lib/money";
+import { both, fmt } from "@/lib/money";
 import { HBars, MonthBars } from "./bars";
 import { DayPanel } from "./day-panel";
 import { FilterBar } from "./filter-bar";
@@ -30,7 +30,7 @@ const monthLong = (m: string) =>
 const dayLabel = (d: string) =>
   new Date(d + "T00:00:00Z").toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
-export type InitialState = Filters & { day: number | null; currency: Currency | null };
+export type InitialState = Filters & { day: number | null };
 
 function Card({ title, sub, children, className = "" }: { title: string; sub?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -60,29 +60,16 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
     includeDormant: initial.includeDormant,
   });
   const [day, setDay] = useState<number | null>(initial.day);
-  const [currency, setCurrencyState] = useState<Currency>(initial.currency ?? "IDR");
-  // Without a currency in the link, use the viewer's last choice.
-  useEffect(() => {
-    if (initial.currency) return;
-    try {
-      const saved = localStorage.getItem("currency");
-      if (saved === "AUD" || saved === "IDR") setCurrencyState(saved);
-    } catch {
-      /* storage unavailable */
-    }
-  }, [initial.currency]);
-  const setCurrency = (c: Currency) => {
-    setCurrencyState(c);
-    try {
-      localStorage.setItem("currency", c);
-    } catch {
-      /* storage unavailable */
-    }
-  };
-  const money = useMemo(() => {
-    const m = { currency, audRate: data.audRate, rateDate: data.rateDate };
-    return (n: number | null) => fmt(n, m);
-  }, [currency, data.audRate, data.rateDate]);
+  // Prices always show in both currencies: A$ first, then Rupiah.
+  const money = useMemo(() => (n: number | null) => both(n, data.audRate), [data.audRate]);
+  const aud = useMemo(
+    () => (n: number | null) => fmt(n, { currency: "AUD", audRate: data.audRate, rateDate: data.rateDate }),
+    [data.audRate, data.rateDate],
+  );
+  const idr = useMemo(
+    () => (n: number | null) => fmt(n, { currency: "IDR", audRate: data.audRate, rateDate: data.rateDate }),
+    [data.audRate, data.rateDate],
+  );
   const rateNote = `A$1 = Rp ${Math.round(data.audRate).toLocaleString("en-AU")} (European Central Bank, ${data.rateDate})`;
 
   const idx = useMemo(() => filterListings(data, filters), [data, filters]);
@@ -144,10 +131,9 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
     if (filters.beds.length) p.set("beds", filters.beds.join(","));
     if (filters.window !== "90") p.set("when", filters.window);
     if (filters.includeDormant) p.set("dormant", "1");
-    if (currency === "AUD") p.set("cur", "AUD");
     if (day != null) p.set("day", stats[day]?.date ?? "");
     return p.toString();
-  }, [filters, day, stats, currency]);
+  }, [filters, day, stats]);
   useEffect(() => {
     window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
   }, [query]);
@@ -169,12 +155,10 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
         areas={data.areas}
         areaCounts={areaCounts}
         months={months.map((m) => ({ key: m.month, label: monthLong(m.month) }))}
-        currency={currency}
-        setCurrency={setCurrency}
-        rateNote={rateNote}
       />
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {scope[0].toUpperCase() + scope.slice(1)}, {windowLabel}
         </h1>
@@ -182,6 +166,10 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
           {idx.length} places on Airbnb · calendars collected {dayLabel(data.snapshot)}
           {data.comparedTo ? ` · bookings compared with ${dayLabel(data.comparedTo)}` : " · new-booking tracking starts after tonight's run"}
         </p>
+        </div>
+        <div className="text-right">
+          <div className="mt-1 text-[11px] text-faint">{rateNote}</div>
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -189,8 +177,8 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
         <Tile label="Nearly sold-out nights" value={summary.soldOutDays} sub={`of ${summary.days}, 90%+ booked`} />
         <Tile
           label="Typical nightly price"
-          value={money(summary.price)}
-          sub={currency === "AUD" ? `median, before taxes · ${rateNote}` : "median, before taxes"}
+          value={aud(summary.price)}
+          sub={`${idr(summary.price)} · median, before taxes`}
         />
         <Tile
           label="Busiest night"
@@ -249,7 +237,13 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
               key: b.key,
               label: `${b.key} bedroom${b.key === "1" ? "" : "s"}`,
               value: b.occ,
-              sub: money(b.price),
+              sub: (
+                <>
+                  {aud(b.price)}
+                  <br />
+                  {idr(b.price)}
+                </>
+              ),
               active: filters.beds.length === 0 || filters.beds.includes(b.key),
               tip: () => (
                 <div>
@@ -272,7 +266,8 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
         idx={idx}
         range={range}
         areas={filters.areas.length ? data.areas.filter((a) => filters.areas.includes(a)) : data.areas}
-        money={money}
+        aud={aud}
+        idr={idr}
         windowLabel={windowLabel ?? ""}
       />
 

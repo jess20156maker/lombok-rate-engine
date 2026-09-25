@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Card, PageTitle, heat, heatText, td, th } from "@/components/ui";
+import { StarButton } from "@/components/star-button";
 import { BEDROOM_GROUPS, bedroomGroup, loadMarket, type ListingStats } from "@/lib/data";
+import { watchedIds } from "@/lib/watch";
 import { pct, rupiah } from "@/lib/format";
 
 const SORTS: Record<string, { label: string; key: (l: ListingStats) => number | string | null; desc?: boolean }> = {
@@ -20,14 +22,14 @@ export default async function ListingsPage(props: PageProps<"/listings">) {
   const sort = SORTS[one(sp.sort)] ? one(sp.sort) : "blocked30";
   const showDormant = one(sp.dormant) === "1";
 
-  const m = await loadMarket();
+  const [m, watched] = await Promise.all([loadMarket(), watchedIds()]);
   const areas = [...new Set(m.stats.map((s) => s.area))].sort();
   const s = SORTS[sort];
   const rows = m.stats
     .filter((l) => !area || l.area === area)
     .filter((l) => !beds || bedroomGroup(l.bedrooms) === beds)
     .filter((l) => !q || l.name.toLowerCase().includes(q))
-    .filter((l) => showDormant || !l.dormant)
+    .filter((l) => showDormant || q !== "" || !l.dormant)
     .sort((a, b) => {
       const x = s.key(a), y = s.key(b);
       if (x == null) return 1;
@@ -101,6 +103,9 @@ export default async function ListingsPage(props: PageProps<"/listings">) {
               {rows.map((l) => (
                 <tr key={l.id} className="border-b border-line last:border-0">
                   <td className={`${td} max-w-[22rem] truncate`}>
+                    <span className="mr-1.5 align-middle">
+                      <StarButton id={l.id} watched={watched.has(l.id)} />
+                    </span>
                     <Link href={`/listings/${l.id}`} className="text-accent hover:underline">
                       {l.name || l.id}
                     </Link>

@@ -31,13 +31,7 @@ export function FilterBar({
   areas,
   areaCounts,
   months,
-  currency,
-  setCurrency,
-  rateNote,
 }: {
-  currency: "IDR" | "AUD";
-  setCurrency: (c: "IDR" | "AUD") => void;
-  rateNote: string;
   filters: Filters;
   setFilters: (f: Filters) => void;
   areas: string[];
@@ -91,14 +85,6 @@ export function FilterBar({
             </option>
           ))}
         </select>
-        <span className="ml-3 mr-1 shrink-0 text-xs text-faint" title={rateNote}>
-          Currency
-        </span>
-        {(["IDR", "AUD"] as const).map((c) => (
-          <Chip key={c} on={currency === c} onClick={() => setCurrency(c)} title={rateNote}>
-            {c === "IDR" ? "Rp" : "A$"}
-          </Chip>
-        ))}
         <label className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap text-xs text-muted">
           <input
             type="checkbox"

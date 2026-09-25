@@ -6,7 +6,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AREAS } from "../../src/areas";
 import { bedroomGroup, pool } from "./data";
+import { HOUR, MINUTE, cached } from "./cache";
 import { audRate } from "./fx";
+import { watchedIds } from "./watch";
 import type { ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
@@ -23,11 +25,20 @@ function loadEvents(): MarketEvent[] {
 }
 
 export async function loadExplore(): Promise<ExploreData | null> {
-  const { rows: latest } = await pool.query(
-    "select max(snapshot_date) d from calendar_snapshots where platform = 'airbnb'",
-  );
-  const snapshot: string | null = latest[0]?.d ?? null;
+  const snapshot = await cached("latestSnapshot", 2 * MINUTE, async () => {
+    const { rows } = await pool.query("select max(snapshot_date) d from calendar_snapshots where platform = 'airbnb'");
+    return (rows[0]?.d as string | null) ?? null;
+  });
   if (!snapshot) return null;
+  // The market payload is shared; the watchlist changes whenever you star a villa, so it's always fresh.
+  const [base, watched] = await Promise.all([
+    cached(`explore:${snapshot}`, HOUR, () => buildExplore(snapshot)),
+    watchedIds(),
+  ]);
+  return { ...base, watched: [...watched] };
+}
+
+async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched">> {
 
   const [ls, cals, prices, changes] = await Promise.all([
     pool.query("select id, name, kind, area, bedrooms, rating from listings where platform = 'airbnb' and active"),

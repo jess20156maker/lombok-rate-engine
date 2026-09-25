@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { tipProps, useTooltip } from "./tooltip";
 
-export type Bar = { key: string; label: string; value: number | null; sub?: string; active?: boolean; tip?: () => ReactNode };
+export type Bar = { key: string; label: string; value: number | null; sub?: ReactNode; active?: boolean; tip?: () => ReactNode };
 
 const pct = (v: number | null) => (v == null ? "–" : `${Math.round(v * 100)}%`);
 
@@ -18,7 +18,7 @@ export function HBars({ bars, onClick }: { bars: Bar[]; onClick?: (key: string) 
           type="button"
           onClick={() => onClick?.(b.key)}
           {...tipProps(t, () => b.tip?.() ?? `${b.label}: ${pct(b.value)}`)}
-          className="group grid grid-cols-[7.5rem_1fr_4.5rem] items-center gap-3 rounded px-1 py-1 text-left text-sm hover:bg-accent-soft"
+          className="group grid grid-cols-[7.5rem_1fr_5rem] items-center gap-3 rounded px-1 py-1 text-left text-sm hover:bg-accent-soft"
         >
           <span className={`truncate ${b.active === false ? "text-faint" : ""}`}>{b.label}</span>
           <span className="relative h-4">

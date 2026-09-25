@@ -136,6 +136,9 @@ if (process.env.DATABASE_URL) {
   const { db } = await import("../lib/db.js");
   await syncListings();
   await checkpoint();
+  // Direct price checks for starred villas.
+  const { runWatch } = await import("./watch.js");
+  await runWatch(date);
   await db.end();
 } else {
   console.log("DATABASE_URL not set: data kept in files only.");

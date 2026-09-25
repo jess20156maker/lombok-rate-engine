@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, PageTitle, Stat, td, th } from "@/components/ui";
+import { StarButton } from "@/components/star-button";
 import { airbnbUrl, loadMarket } from "@/lib/data";
+import { watchedIds } from "@/lib/watch";
 import { dateLabel, pct, rupiah } from "@/lib/format";
 
 const COLORS: Record<string, string> = { "1": "var(--open)", c: "var(--nocheckin)", "0": "var(--blocked)" };
@@ -41,7 +43,7 @@ function YearCalendar({ from, nights }: { from: string; nights: string }) {
 
 export default async function ListingPage(props: PageProps<"/listings/[id]">) {
   const { id } = await props.params;
-  const m = await loadMarket();
+  const [m, watched] = await Promise.all([loadMarket(), watchedIds()]);
   const l = m.stats.find((s) => s.id === id);
   if (!l) notFound();
 
@@ -64,7 +66,8 @@ export default async function ListingPage(props: PageProps<"/listings/[id]">) {
           </>
         }
       >
-        {l.name}
+        <span className="mr-3">{l.name}</span>
+        <StarButton id={l.id} watched={watched.has(l.id)} label />
       </PageTitle>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">

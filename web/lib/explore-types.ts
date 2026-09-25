@@ -41,6 +41,7 @@ export type ExploreData = {
   newBookings: Record<number, number[]>;
   comparedTo: string | null;
   events: MarketEvent[];
+  watched: string[]; // listing ids on the watchlist
   audRate: number; // IDR per AUD
   rateDate: string;
 };
