@@ -1,10 +1,10 @@
 import "dotenv/config";
 import pg from "pg";
+import { databaseUrl } from "./env.js";
 
 // Supabase's pooler presents a certificate Node doesn't chain by default.
 export const db = new pg.Pool({
-  // Trim: pasted secrets often carry a trailing line break.
-  connectionString: process.env.DATABASE_URL?.trim(),
+  connectionString: databaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 3,
 });

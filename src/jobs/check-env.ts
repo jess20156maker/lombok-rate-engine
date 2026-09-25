@@ -5,17 +5,20 @@
 
 import "dotenv/config";
 import pg from "pg";
+import { databaseUrl, describeStrayChars } from "../lib/env.js";
 
-// Stray spaces or a line break at either end are common when pasting; ignore them.
-const url = (process.env.DATABASE_URL ?? "").trim();
+const raw = process.env.DATABASE_URL ?? "";
+const url = databaseUrl();
 const fail = (why: string) => {
   console.error(`DATABASE_URL problem: ${why}`);
   process.exit(1);
 };
 
+const stray = describeStrayChars(raw);
+if (stray !== "none") console.log(`Note: removed invisible characters from the secret (${stray}).`);
+
 if (!url) fail("it is empty or not set. Add it under Settings > Secrets and variables > Actions.");
 if (url.startsWith("DATABASE_URL=")) fail('it starts with "DATABASE_URL=". Paste only the part after the = sign.');
-if (/\s/.test(url)) fail("it contains a space or line break in the middle. Re-paste it as one line.");
 if (!/^postgres(ql)?:\/\//.test(url)) fail('it should start with "postgresql://".');
 if (url.includes("[YOUR-PASSWORD]")) fail("it still contains [YOUR-PASSWORD] instead of the real password.");
 if (/@db\.[a-z]+\.supabase\.co/.test(url)) fail("it is the Direct connection address; use the Session pooler one.");
