@@ -9,7 +9,8 @@
     "relabel": "tsx src/jobs/relabel.ts",
     "db:migrate": "tsx src/jobs/migrate.ts",
     "sync": "tsx src/jobs/sync.ts",
-    "hydrate": "tsx src/jobs/hydrate.ts"
+    "hydrate": "tsx src/jobs/hydrate.ts",
+    "check-env": "tsx src/jobs/check-env.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

@@ -24,6 +24,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run check-env
       # The runner starts empty: pull listings, tiles and yesterday's calendars from Supabase.
       - run: npm run hydrate
       - run: npm run daily
