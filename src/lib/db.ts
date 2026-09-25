@@ -3,7 +3,8 @@ import pg from "pg";
 
 // Supabase's pooler presents a certificate Node doesn't chain by default.
 export const db = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  // Trim: pasted secrets often carry a trailing line break.
+  connectionString: process.env.DATABASE_URL?.trim(),
   ssl: { rejectUnauthorized: false },
   max: 3,
 });
