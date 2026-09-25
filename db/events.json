@@ -1,0 +1,874 @@
+[
+  {
+    "name": "Dry season",
+    "category": "season",
+    "start": "2026-09-01",
+    "end": "2026-10-31",
+    "markets": [
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Sunny, dry weather and good surf make this the busiest time of year for international visitors.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/"
+  },
+  {
+    "name": "Peak surf season (south swells)",
+    "category": "season",
+    "start": "2026-09-01",
+    "end": "2026-09-30",
+    "markets": [
+      "AU",
+      "EU",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Big, consistent south swells and offshore winds draw surfers to Gerupuk, Mawi and Selong Belanak.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/"
+  },
+  {
+    "name": "Singapore school holidays (September)",
+    "category": "school-holiday",
+    "start": "2026-09-05",
+    "end": "2026-09-13",
+    "markets": [
+      "SG"
+    ],
+    "impact": "low",
+    "why": "A one-week break that sends some Singapore families on short regional trips.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20250730-school-terms-and-holidays-for-2026"
+  },
+  {
+    "name": "QLD school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2026-09-19",
+    "end": "2026-10-05",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Brisbane families use the spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/term-dates"
+  },
+  {
+    "name": "VIC school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2026-09-19",
+    "end": "2026-10-04",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Melbourne families use the two-week spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "NSW school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2026-09-26",
+    "end": "2026-10-12",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Sydney families use the two-week spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/2026"
+  },
+  {
+    "name": "WA school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2026-09-26",
+    "end": "2026-10-11",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth is a short, cheap flight away, so WA school breaks send a wave of families to Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "MotoGP Indonesian Grand Prix 2026",
+    "category": "event",
+    "start": "2026-10-09",
+    "end": "2026-10-11",
+    "markets": [
+      "ID",
+      "AU",
+      "SG",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Race fans fill every bed near the Mandalika circuit, and many arrive a day or two early.",
+    "confidence": "confirmed",
+    "source": "https://www.motogp.com/en/calendar"
+  },
+  {
+    "name": "Netherlands school holidays (autumn)",
+    "category": "school-holiday",
+    "start": "2026-10-10",
+    "end": "2026-10-25",
+    "markets": [
+      "EU"
+    ],
+    "impact": "low",
+    "why": "A one-week autumn break (staggered by region) brings a few Dutch families on long-haul trips.",
+    "confidence": "confirmed",
+    "source": "https://www.rijksoverheid.nl/themas/onderwijs/schoolvakanties/overzicht-schoolvakanties-per-schooljaar/overzicht-schoolvakanties-2026-2027"
+  },
+  {
+    "name": "UK school holidays (October half-term)",
+    "category": "school-holiday",
+    "start": "2026-10-24",
+    "end": "2026-11-01",
+    "markets": [
+      "EU"
+    ],
+    "impact": "low",
+    "why": "A one-week break that brings a few British families on long-haul trips.",
+    "confidence": "estimated",
+    "source": "https://www.gov.uk/school-term-holiday-dates"
+  },
+  {
+    "name": "Wet season",
+    "category": "season",
+    "start": "2026-11-01",
+    "end": "2027-03-31",
+    "markets": [
+      "GLOBAL"
+    ],
+    "impact": "low",
+    "why": "Afternoon downpours and humidity thin out international visitors, apart from the Christmas and New Year peak.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/",
+    "effect": "down"
+  },
+  {
+    "name": "Singapore school holidays (year-end)",
+    "category": "school-holiday",
+    "start": "2026-11-21",
+    "end": "2026-12-31",
+    "markets": [
+      "SG"
+    ],
+    "impact": "medium",
+    "why": "Singapore's six-week year-end break is its main family travel season.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20250730-school-terms-and-holidays-for-2026"
+  },
+  {
+    "name": "QLD school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2026-12-12",
+    "end": "2027-01-26",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/future-dates"
+  },
+  {
+    "name": "NSW school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2026-12-18",
+    "end": "2027-01-27",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/2026"
+  },
+  {
+    "name": "WA school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2026-12-18",
+    "end": "2027-01-31",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth is a short, cheap flight away, so WA school breaks send a wave of families to Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "Netherlands school holidays (Christmas)",
+    "category": "school-holiday",
+    "start": "2026-12-19",
+    "end": "2027-01-03",
+    "markets": [
+      "EU"
+    ],
+    "impact": "medium",
+    "why": "Dutch families escaping winter add to the Christmas and New Year peak.",
+    "confidence": "confirmed",
+    "source": "https://www.rijksoverheid.nl/themas/onderwijs/schoolvakanties/overzicht-schoolvakanties-per-schooljaar/overzicht-schoolvakanties-2026-2027"
+  },
+  {
+    "name": "UK school holidays (Christmas)",
+    "category": "school-holiday",
+    "start": "2026-12-19",
+    "end": "2027-01-03",
+    "markets": [
+      "EU"
+    ],
+    "impact": "medium",
+    "why": "British families escaping winter add to the Christmas and New Year peak.",
+    "confidence": "estimated",
+    "source": "https://www.gov.uk/school-term-holiday-dates"
+  },
+  {
+    "name": "VIC school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2026-12-19",
+    "end": "2027-01-27",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "Indonesia (NTB) school holidays (semester break)",
+    "category": "school-holiday",
+    "start": "2026-12-21",
+    "end": "2027-01-02",
+    "markets": [
+      "ID"
+    ],
+    "impact": "high",
+    "why": "Indonesian families travel over Christmas and New Year while schools are out.",
+    "confidence": "confirmed",
+    "source": "https://www.detik.com/bali/berita/d-8302063/kalender-pendidikan-ntb-2026-jadwal-libur-sekolah-ujian-dan-pembagian-rapor"
+  },
+  {
+    "name": "Christmas long weekend 2026 (Indonesia)",
+    "category": "holiday",
+    "start": "2026-12-24",
+    "end": "2026-12-27",
+    "markets": [
+      "ID"
+    ],
+    "impact": "high",
+    "why": "Christmas Day plus a collective-leave day make a four-day weekend right as the year-end holiday rush starts.",
+    "confidence": "confirmed",
+    "source": "https://setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2026"
+  },
+  {
+    "name": "New Year 2027",
+    "category": "holiday",
+    "start": "2026-12-31",
+    "end": "2027-01-03",
+    "markets": [
+      "ID",
+      "AU",
+      "SG",
+      "EU",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "New Year's Eve is one of the busiest, highest-priced nights of the year across Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Isra Mi'raj (January 2027)",
+    "category": "holiday",
+    "start": "2027-01-05",
+    "end": "2027-01-05",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "A single mid-week public holiday gives only a small bump in domestic trips.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Chinese New Year (Imlek) 2027",
+    "category": "holiday",
+    "start": "2027-02-05",
+    "end": "2027-02-07",
+    "markets": [
+      "ID",
+      "SG"
+    ],
+    "impact": "medium",
+    "why": "A three-day weekend in Indonesia and a public holiday in Singapore bring short-break travellers.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Ramadan 2027",
+    "category": "holiday",
+    "start": "2027-02-08",
+    "end": "2027-03-09",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "Domestic leisure travel drops during the fasting month and some local warungs keep shorter hours.",
+    "confidence": "estimated",
+    "source": "https://rri.co.id/ternate/nasional/2746086/muhammadiyah-tetapkan-ramadan-1448-h-mulai-8-februari-2027",
+    "effect": "down"
+  },
+  {
+    "name": "Bau Nyale festival 2027",
+    "category": "event",
+    "start": "2027-02-25",
+    "end": "2027-02-28",
+    "markets": [
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "Thousands of locals and domestic visitors crowd Seger and Kuta beaches for the sea-worm night; exact night is set by the Sasak elders in December 2026.",
+    "confidence": "estimated",
+    "source": "https://www.wavelombok.com/journal/bau-nyale-festival-lombok/"
+  },
+  {
+    "name": "Idul Fitri / Lebaran 2027 collective leave",
+    "category": "holiday",
+    "start": "2027-03-06",
+    "end": "2027-03-15",
+    "markets": [
+      "ID"
+    ],
+    "impact": "high",
+    "why": "Nyepi, Lebaran and five collective-leave days join into a 10-day break, the biggest domestic travel week of the year.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Nyepi 2027 (Bali Day of Silence)",
+    "category": "holiday",
+    "start": "2027-03-06",
+    "end": "2027-03-09",
+    "markets": [
+      "ID",
+      "AU",
+      "GLOBAL"
+    ],
+    "impact": "medium",
+    "why": "Bali's airport and roads close for 24 hours on 8 March, so some visitors hop to Lombok to avoid it.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Singapore school holidays (March)",
+    "category": "school-holiday",
+    "start": "2027-03-13",
+    "end": "2027-03-21",
+    "markets": [
+      "SG"
+    ],
+    "impact": "low",
+    "why": "A one-week break that sends some Singapore families on short regional trips.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20260714-school-terms-and-holidays-for-2027"
+  },
+  {
+    "name": "Easter long weekend 2027",
+    "category": "holiday",
+    "start": "2027-03-25",
+    "end": "2027-03-28",
+    "markets": [
+      "ID",
+      "AU",
+      "EU"
+    ],
+    "impact": "medium",
+    "why": "A collective-leave day plus Good Friday give Indonesians a four-day weekend, and Australians have Easter off too.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "QLD school holidays (autumn)",
+    "category": "school-holiday",
+    "start": "2027-03-26",
+    "end": "2027-04-11",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Queensland families use the Easter break for a short tropical trip.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/future-dates"
+  },
+  {
+    "name": "VIC school holidays (autumn)",
+    "category": "school-holiday",
+    "start": "2027-03-26",
+    "end": "2027-04-11",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Melbourne families use the Easter break for a short tropical trip.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "Shoulder month (April)",
+    "category": "season",
+    "start": "2027-04-01",
+    "end": "2027-04-30",
+    "markets": [
+      "GLOBAL"
+    ],
+    "impact": "medium",
+    "why": "Rains are easing and prices are still soft, so demand starts to build.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/"
+  },
+  {
+    "name": "NSW school holidays (autumn)",
+    "category": "school-holiday",
+    "start": "2027-04-10",
+    "end": "2027-04-26",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Sydney families use the two-week autumn break for a short tropical trip.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/future-and-past-nsw-term-and-vacation-dates"
+  },
+  {
+    "name": "WA school holidays (autumn)",
+    "category": "school-holiday",
+    "start": "2027-04-10",
+    "end": "2027-04-25",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth is a short, cheap flight away, so WA school breaks send a wave of families to Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "Dry season",
+    "category": "season",
+    "start": "2027-05-01",
+    "end": "2027-10-31",
+    "markets": [
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Sunny, dry weather and good surf make this the busiest time of year for international visitors.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/"
+  },
+  {
+    "name": "Labour Day and Ascension Day 2027",
+    "category": "holiday",
+    "start": "2027-05-01",
+    "end": "2027-05-09",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "Two separate one-day holidays (Sat 1 May and Thu 6 May) give only small domestic bumps.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Peak surf season (south swells)",
+    "category": "season",
+    "start": "2027-05-01",
+    "end": "2027-09-30",
+    "markets": [
+      "AU",
+      "EU",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Big, consistent south swells and offshore winds draw surfers to Gerupuk, Mawi and Selong Belanak.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/"
+  },
+  {
+    "name": "Idul Adha and Vesak long break 2027",
+    "category": "holiday",
+    "start": "2027-05-15",
+    "end": "2027-05-20",
+    "markets": [
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "Idul Adha, Vesak and two collective-leave days make a six-day break for domestic travellers.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Singapore school holidays (June)",
+    "category": "school-holiday",
+    "start": "2027-05-29",
+    "end": "2027-06-27",
+    "markets": [
+      "SG"
+    ],
+    "impact": "medium",
+    "why": "The month-long June break is a popular time for Singapore families to travel in the region.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20260714-school-terms-and-holidays-for-2027"
+  },
+  {
+    "name": "Pancasila Day 2027",
+    "category": "holiday",
+    "start": "2027-06-01",
+    "end": "2027-06-01",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "A lone Tuesday holiday; some people take Monday off for a long weekend.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Islamic New Year 2027",
+    "category": "holiday",
+    "start": "2027-06-06",
+    "end": "2027-06-06",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "Falls on a Sunday, so it adds almost no extra travel.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Indonesia (NTB) school holidays (end of school year)",
+    "category": "school-holiday",
+    "start": "2027-06-26",
+    "end": "2027-07-11",
+    "markets": [
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "The long mid-year school break is when Indonesian families take their main holiday.",
+    "confidence": "estimated",
+    "source": "https://www.komunitasbelajar.id/2026/07/kalender-pendidikan-ntb-tahun-ajaran-2026-2027.html"
+  },
+  {
+    "name": "QLD school holidays (winter)",
+    "category": "school-holiday",
+    "start": "2027-06-26",
+    "end": "2027-07-11",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Queenslanders head north for dry-season sun and surf.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/future-dates"
+  },
+  {
+    "name": "VIC school holidays (winter)",
+    "category": "school-holiday",
+    "start": "2027-06-26",
+    "end": "2027-07-11",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Melburnians escape the cold for dry-season sun and surf.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "Germany school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-06-28",
+    "end": "2027-09-13",
+    "markets": [
+      "EU"
+    ],
+    "impact": "high",
+    "why": "German families travel across a staggered summer window that differs by state.",
+    "confidence": "confirmed",
+    "source": "https://www.kmk.org/service/ferienregelung/ferienkalender.html"
+  },
+  {
+    "name": "NSW school holidays (winter)",
+    "category": "school-holiday",
+    "start": "2027-07-03",
+    "end": "2027-07-18",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Australians escape winter for dry-season sun and surf.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/future-and-past-nsw-term-and-vacation-dates"
+  },
+  {
+    "name": "WA school holidays (winter)",
+    "category": "school-holiday",
+    "start": "2027-07-03",
+    "end": "2027-07-18",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth families swap winter for dry-season sun and surf.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "Netherlands school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-07-10",
+    "end": "2027-09-05",
+    "markets": [
+      "EU"
+    ],
+    "impact": "high",
+    "why": "Dutch travellers, a big Indonesia market, come in numbers during their six-week summer (staggered by region).",
+    "confidence": "confirmed",
+    "source": "https://www.rijksoverheid.nl/themas/onderwijs/schoolvakanties/overzicht-schoolvakanties-per-schooljaar/overzicht-schoolvakanties-2026-2027"
+  },
+  {
+    "name": "UK school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-07-23",
+    "end": "2027-09-01",
+    "markets": [
+      "EU"
+    ],
+    "impact": "high",
+    "why": "British families take their main holiday in the six-week summer break.",
+    "confidence": "estimated",
+    "source": "https://www.gov.uk/school-term-holiday-dates"
+  },
+  {
+    "name": "Maulid and Independence Day 2027",
+    "category": "holiday",
+    "start": "2027-08-14",
+    "end": "2027-08-17",
+    "markets": [
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "The Prophet's Birthday (Sun) and Independence Day (Tue) sit close together, so many domestic travellers bridge the Monday.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "Singapore school holidays (September)",
+    "category": "school-holiday",
+    "start": "2027-09-04",
+    "end": "2027-09-12",
+    "markets": [
+      "SG"
+    ],
+    "impact": "low",
+    "why": "A one-week break that sends some Singapore families on short regional trips.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20260714-school-terms-and-holidays-for-2027"
+  },
+  {
+    "name": "QLD school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2027-09-18",
+    "end": "2027-10-04",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Brisbane families use the spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/future-dates"
+  },
+  {
+    "name": "VIC school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2027-09-18",
+    "end": "2027-10-03",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Melbourne families use the two-week spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "NSW school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2027-09-25",
+    "end": "2027-10-10",
+    "markets": [
+      "AU"
+    ],
+    "impact": "medium",
+    "why": "Sydney families use the two-week spring break for a quick Indonesia trip.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/future-and-past-nsw-term-and-vacation-dates"
+  },
+  {
+    "name": "WA school holidays (spring)",
+    "category": "school-holiday",
+    "start": "2027-09-25",
+    "end": "2027-10-10",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth is a short, cheap flight away, so WA school breaks send a wave of families to Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "MotoGP Indonesian Grand Prix 2027",
+    "category": "event",
+    "start": "2027-10-29",
+    "end": "2027-10-31",
+    "markets": [
+      "ID",
+      "AU",
+      "SG",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Race fans fill every bed near the Mandalika circuit; the date is on the official 2027 calendar but still marked provisional.",
+    "confidence": "confirmed",
+    "source": "https://www.motorsportweek.com/2026/09/25/motogp-unveils-2027-calendar-with-motogp-unveils-22-race-2027-calendar-ahead-of-new-technical-era/"
+  },
+  {
+    "name": "Wet season",
+    "category": "season",
+    "start": "2027-11-01",
+    "end": "2027-12-31",
+    "markets": [
+      "GLOBAL"
+    ],
+    "impact": "low",
+    "why": "Afternoon downpours and humidity thin out international visitors, apart from the Christmas and New Year peak.",
+    "confidence": "general",
+    "source": "https://thesurfatlas.com/surfing-indonesia/lombok-surf/",
+    "effect": "down"
+  },
+  {
+    "name": "Singapore school holidays (year-end)",
+    "category": "school-holiday",
+    "start": "2027-11-20",
+    "end": "2027-12-31",
+    "markets": [
+      "SG"
+    ],
+    "impact": "medium",
+    "why": "Singapore's six-week year-end break is its main family travel season.",
+    "confidence": "confirmed",
+    "source": "https://www.moe.gov.sg/news/press-releases/20260714-school-terms-and-holidays-for-2027"
+  },
+  {
+    "name": "QLD school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-12-11",
+    "end": "2028-01-23",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://education.qld.gov.au/about-us/calendar/future-dates"
+  },
+  {
+    "name": "WA school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-12-17",
+    "end": "2028-02-01",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "Perth is a short, cheap flight away, so WA school breaks send a wave of families to Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.education.wa.edu.au/future-term-dates"
+  },
+  {
+    "name": "Indonesia (NTB) school holidays (semester break)",
+    "category": "school-holiday",
+    "start": "2027-12-18",
+    "end": "2027-12-31",
+    "markets": [
+      "ID"
+    ],
+    "impact": "high",
+    "why": "Indonesian families travel over Christmas and New Year while schools are out.",
+    "confidence": "estimated",
+    "source": "https://www.komunitasbelajar.id/2026/07/kalender-pendidikan-ntb-tahun-ajaran-2026-2027.html"
+  },
+  {
+    "name": "NSW school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-12-18",
+    "end": "2028-01-28",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://education.nsw.gov.au/schooling/calendars/future-and-past-nsw-term-and-vacation-dates"
+  },
+  {
+    "name": "VIC school holidays (summer)",
+    "category": "school-holiday",
+    "start": "2027-12-18",
+    "end": "2027-12-31",
+    "markets": [
+      "AU"
+    ],
+    "impact": "high",
+    "why": "The long Australian summer break is the busiest time for Australian families in Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.vic.gov.au/school-term-dates-and-holidays-victoria"
+  },
+  {
+    "name": "Christmas long weekend 2027 (Indonesia)",
+    "category": "holiday",
+    "start": "2027-12-24",
+    "end": "2027-12-26",
+    "markets": [
+      "ID",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "Christmas Eve collective leave, Christmas Day and a Sunday Isra Mi'raj holiday make a three-day weekend at the start of peak season.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "New Year's Eve 2027",
+    "category": "holiday",
+    "start": "2027-12-31",
+    "end": "2027-12-31",
+    "markets": [
+      "ID",
+      "AU",
+      "SG",
+      "EU",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "New Year's Eve is one of the busiest, highest-priced nights of the year across Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  }
+]

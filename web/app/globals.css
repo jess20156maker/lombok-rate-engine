@@ -1,41 +1,77 @@
 @import "tailwindcss";
 
+/* Chrome and chart colours follow the dataviz reference palette.
+   Dark mode is its own set of steps, not an inversion. */
 :root {
-  --bg: #f7f6f3;
-  --panel: #ffffff;
-  --ink: #1d1f1e;
-  --muted: #6b706d;
-  --line: #e4e2dc;
-  --accent: #0f766e;
-  --accent-soft: #e6f2f0;
-  /* Occupancy scale: open -> fully blocked */
-  --heat-0: #eef4f3;
-  --heat-1: #c9e3df;
-  --heat-2: #8cc5bd;
-  --heat-3: #3f9c90;
-  --heat-4: #0f5f57;
-  --open: #d9ede9;
-  --blocked: #1f6f66;
-  --nocheckin: #a7d3cc;
+  --bg: #f9f9f7;
+  --panel: #fcfcfb;
+  --ink: #0b0b0b;
+  --muted: #52514e;
+  --faint: #898781;
+  --line: #e1e0d9;
+  --axis: #c3c2b7;
+  --ring: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --accent-soft: #e8f1fc;
+  --up: #006300;
+  --down: #b3261e;
+  /* Sequential (occupancy): one hue, near-zero recedes toward the surface. */
+  --seq-0: #eef3f9;
+  --seq-1: #cde2fb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #256abf;
+  --seq-6: #184f95;
+  --seq-7: #0d366b;
+  --seq-ink-flip: 4; /* steps >= this take light text */
+  --event: #eb6834;
+  --tooltip-bg: #0b0b0b;
+  --tooltip-ink: #ffffff;
+  /* Kept for the older pages. */
+  --open: #cde2fb;
+  --blocked: #256abf;
+  --nocheckin: #86b6ef;
+  --heat-0: #eef3f9;
+  --heat-1: #b7d3f6;
+  --heat-2: #6da7ec;
+  --heat-3: #2a78d6;
+  --heat-4: #184f95;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121413;
-    --panel: #1a1d1c;
-    --ink: #e8eae8;
-    --muted: #979d9a;
-    --line: #2c302e;
-    --accent: #5eead4;
-    --accent-soft: #173330;
-    --heat-0: #1c2523;
-    --heat-1: #1f3d39;
-    --heat-2: #256058;
-    --heat-3: #2f8a7e;
-    --heat-4: #5ec7b8;
-    --open: #1f2e2b;
-    --blocked: #4fb3a6;
-    --nocheckin: #2c5c55;
+    --bg: #0d0d0d;
+    --panel: #1a1a19;
+    --ink: #ffffff;
+    --muted: #c3c2b7;
+    --faint: #898781;
+    --line: #2c2c2a;
+    --axis: #383835;
+    --ring: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --accent-soft: #16263a;
+    --up: #0ca30c;
+    --down: #e66767;
+    --seq-0: #1f2226;
+    --seq-1: #0d366b;
+    --seq-2: #104281;
+    --seq-3: #1c5cab;
+    --seq-4: #2a78d6;
+    --seq-5: #5598e7;
+    --seq-6: #86b6ef;
+    --seq-7: #cde2fb;
+    --event: #d95926;
+    --tooltip-bg: #ffffff;
+    --tooltip-ink: #0b0b0b;
+    --open: #16263a;
+    --blocked: #5598e7;
+    --nocheckin: #1c5cab;
+    --heat-0: #1f2226;
+    --heat-1: #104281;
+    --heat-2: #1c5cab;
+    --heat-3: #3987e5;
+    --heat-4: #86b6ef;
   }
 }
 
@@ -44,10 +80,13 @@
   --color-panel: var(--panel);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
-  --font-sans: var(--font-geist-sans);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -62,4 +101,14 @@ body {
 .leaflet-container img {
   max-width: none !important;
   max-height: none !important;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  * { transition: none !important; }
 }

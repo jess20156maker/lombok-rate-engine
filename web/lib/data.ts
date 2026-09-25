@@ -10,7 +10,7 @@ pg.types.setTypeParser(20, (v) => Number(v));
 
 const globalForDb = globalThis as unknown as { pool?: pg.Pool };
 // One pool per server process, surviving dev hot-reloads.
-const pool = (globalForDb.pool ??= new pg.Pool({
+export const pool = (globalForDb.pool ??= new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   max: 3,
