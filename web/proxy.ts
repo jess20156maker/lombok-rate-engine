@@ -14,6 +14,9 @@ function safeEqual(a: string, b: string) {
 export function proxy(request: NextRequest) {
   const password = process.env.DASHBOARD_PASSWORD;
   if (!password) return NextResponse.next();
+  // Calendar feeds for Airbnb/Booking.com: they can't send a password, so the
+  // feed's own long secret token protects it instead.
+  if (request.nextUrl.pathname.startsWith("/api/ical/")) return NextResponse.next();
 
   const header = request.headers.get("authorization") ?? "";
   if (header.startsWith("Basic ")) {

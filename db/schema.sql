@@ -142,3 +142,91 @@ create table if not exists price_grid (
 );
 create index if not exists price_grid_listing on price_grid (platform, listing_id);
 alter table price_grid enable row level security;
+
+-- ============================================================================
+-- Your villa: pricing engine + central calendar
+-- ============================================================================
+
+create extension if not exists pgcrypto;
+
+create table if not exists properties (
+  id              text primary key,                 -- slug, e.g. 'mulai-villa'
+  name            text not null,
+  area            text not null,                    -- beach, as in src/areas.ts
+  bedrooms        smallint not null,
+  lat             double precision,
+  lng             double precision,
+  -- Where the villa sits in its comparable set: 0.5 = median, 0.75 = upper quartile.
+  position        real not null default 0.6,
+  min_rate        bigint not null,                  -- IDR per night, never price below
+  max_rate        bigint not null,                  -- IDR per night, never price above
+  base_min_stay   smallint not null default 2,
+  settings        jsonb not null default '{}',      -- optional engine tweaks
+  -- Calendar sync. ical_token keeps the export link unguessable.
+  ical_token      text not null default encode(gen_random_bytes(18), 'hex'),
+  airbnb_ical_url  text,                            -- Airbnb's "export calendar" link
+  booking_ical_url text,                            -- Booking.com's "export calendar" link
+  draft           boolean not null default true,    -- true until the owner confirms the details
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+alter table properties enable row level security;
+
+-- Every stay or block, from every channel, in one place.
+create table if not exists reservations (
+  id            uuid primary key default gen_random_uuid(),
+  property_id   text not null references properties(id) on delete cascade,
+  source        text not null,          -- 'direct' | 'airbnb' | 'booking' | 'manual' | 'block'
+  external_uid  text,                   -- the channel's own event id (iCal UID)
+  checkin       date not null,
+  checkout      date not null,          -- the morning they leave (not a night stayed)
+  guest_name    text,
+  status        text not null default 'confirmed',  -- 'confirmed' | 'cancelled'
+  total         bigint,                 -- IDR, when known
+  notes         text,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  check (checkout > checkin)
+);
+-- Unique per channel event. (Rows without an external_uid, e.g. direct bookings,
+-- never collide: NULLs are distinct.) Not a partial index, so ON CONFLICT can use it.
+drop index if exists reservations_external;
+create unique index if not exists reservations_external_uid on reservations (property_id, source, external_uid);
+create index if not exists reservations_dates on reservations (property_id, checkin, checkout);
+alter table reservations enable row level security;
+
+-- Prices or minimum stays you set by hand win over the engine.
+create table if not exists rate_overrides (
+  property_id text not null references properties(id) on delete cascade,
+  date        date not null,
+  price       bigint,       -- IDR per night; null = let the engine decide the price
+  min_stay    smallint,     -- null = let the engine decide
+  note        text,
+  primary key (property_id, date)
+);
+alter table rate_overrides enable row level security;
+
+-- The engine's latest suggestion for every night, with its reasons.
+create table if not exists price_recommendations (
+  property_id   text not null references properties(id) on delete cascade,
+  date          date not null,
+  price         bigint not null,       -- IDR per night
+  min_stay      smallint not null,
+  market_price  bigint,                -- the comparable villas' reference price that night
+  market_occ    real,                  -- share of comparable villas booked that night
+  comp_count    int,
+  reasons       jsonb not null default '[]',
+  computed_at   timestamptz not null default now(),
+  primary key (property_id, date)
+);
+alter table price_recommendations enable row level security;
+
+-- One compact row per property per engine run, so you can see how prices moved.
+create table if not exists price_history (
+  property_id text not null references properties(id) on delete cascade,
+  run_date    date not null,
+  from_date   date not null,
+  prices      bigint[] not null,       -- prices[k] = price for from_date + k
+  primary key (property_id, run_date)
+);
+alter table price_history enable row level security;

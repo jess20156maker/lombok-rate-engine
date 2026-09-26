@@ -15,7 +15,10 @@
     "booking": "tsx src/jobs/booking.ts",
     "link": "tsx src/jobs/link.ts",
     "prices": "tsx src/jobs/prices.ts",
-    "finish": "tsx src/jobs/finish.ts"
+    "finish": "tsx src/jobs/finish.ts",
+    "price-villa": "tsx src/jobs/price-villa.ts",
+    "test": "tsx --test src/pricing/engine.test.ts src/lib/ical.test.ts",
+    "calendar-sync": "tsx src/jobs/calendar-sync.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

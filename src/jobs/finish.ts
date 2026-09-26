@@ -23,6 +23,10 @@ const date = today();
 await db.query("update listings set active = false where platform = 'booking' and last_seen < ($1::date - 30)", [date]);
 await linkPlatforms();
 
+// Tonight's market data is in: re-price the villa(s).
+const { priceAllProperties } = await import("./price-villa.js");
+await priceAllProperties();
+
 // Keep the most recent KEEP_DAYS collection days that actually exist (the
 // dashboard reads the latest one), whatever today's date is.
 const { rows: days } = await db.query("select distinct snapshot_date from price_samples order by 1 desc");

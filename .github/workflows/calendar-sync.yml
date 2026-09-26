@@ -1,0 +1,27 @@
+# Keep the central calendar in step with Airbnb and Booking.com every 20 minutes.
+# (Airbnb and Booking.com also re-read our calendar on their own schedule, a few times an hour.)
+name: Calendar sync
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: calendar-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run calendar-sync
