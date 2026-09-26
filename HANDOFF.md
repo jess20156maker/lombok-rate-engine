@@ -53,6 +53,29 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
   estimates: update when official dates are announced (Bau Nyale is set in early Dec 2026).
 - Currency: A$ and Rp both shown; ECB rate via frankfurter.dev (`web/lib/fx.ts`).
 
+## Villa: pricing engine, central calendar, assistant
+
+- `properties` holds the villa (draft Mulai Villa: 3 bed, Selong Belanak, position 0.65, min Rp 2.5m, max Rp 15m,
+  `draft = true` until the owner confirms on /pricing).
+- Engine: `src/pricing/engine.ts` (pure, tested in `engine.test.ts`), inputs from `src/pricing/load.ts`
+  (comparable villas = reviewed Airbnb listings, same beach + bedrooms, widening if < 8), saved by
+  `src/pricing/run.ts` into `price_recommendations` (+ `price_history`). Runs nightly in `npm run finish` and on
+  every change from the website. Overrides in `rate_overrides` win; min/max clamp otherwise.
+- Calendar: `reservations` (sources airbnb/booking/direct/manual/block). `src/lib/calendar-sync.ts` imports each
+  channel's iCal export (every 20 min: `.github/workflows/calendar-sync.yml`), cancels vanished events, flags
+  overlaps. Feeds for the channels: `/api/ical/<ical_token>/{airbnb,booking,all}.ics` (exempt from the password;
+  each channel's feed omits its own stays). Tested end to end with a temporary property (see git history).
+- Prices can't be pushed to Airbnb/Booking.com (no public API): options are a channel manager API or copying.
+- Assistant: `web/lib/assistant.ts` + `/api/assistant`, Claude Opus 5 with `fallbacks: "default"`; read-only tools
+  plus propose_* tools whose proposals render Apply buttons (nothing changes without a tap). Needs
+  `ANTHROPIC_API_KEY` in Vercel env. `/api/assistant-selftest` (dev only) runs the loop with a scripted model.
+- Shared code between collector and website must be dependency-free with extensionless relative imports
+  (`src/lib/sql.ts`, `ical.ts`, `calendar-sync.ts`, `env.ts`, `src/pricing/*`), taking a `Query` function.
+- Database connections use Supabase's transaction pooler (port 6543, rewritten in `src/lib/env.ts`); the session
+  pooler's 15-client cap broke the parallel nightly jobs.
+
 ## Next
-1. Pricing engine: rules on top of explore-calc signals (events, pace vs market, lead time, min-stay moves).
-2. Booking site + booking engine (Next.js in web/, Supabase for bookings, iCal sync with OTAs).
+1. Owner: confirm villa details on /pricing; paste Airbnb/Booking.com export links on /calendar and our feed links
+   into both sites; add ANTHROPIC_API_KEY to switch on the assistant.
+2. Direct booking website + payments (Xendit/Midtrans or Stripe) writing `reservations` with source 'direct'.
+3. Pushing prices to OTAs via a channel manager API, if wanted.
