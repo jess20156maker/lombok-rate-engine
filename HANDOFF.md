@@ -10,10 +10,11 @@ github.com/jess20156maker/lombok-rate-engine (private).
 | Airbnb + Booking.com collection | GitHub Actions, nightly 01:00 Lombok (17:00 UTC) | `.github/workflows/nightly.yml`: check-env, hydrate, daily, Booking.com |
 | New/removed listing sweep | GitHub Actions, Sundays 00:00 Lombok | `.github/workflows/weekly-discover.yml` |
 | Database | Supabase Postgres, ap-south-1 (Mumbai) | `db/schema.sql`, `npm run db:migrate`; RLS on, no policies (public API locked out) |
-| Dashboard | Local for now: `cd web && npx next dev --port 3100` | Next.js 16 in `web/`; read `web/AGENTS.md` first |
+| Dashboard | https://lombok-rate-engine.vercel.app (Vercel team seqnce-ops = the user's personal Hobby account), auto-deploys on push to main; locally `cd web && npx next dev --port 3100` | Next.js 16 in `web/` (Vercel root dir `web`, source outside root on); password gate in `web/proxy.ts` via `DASHBOARD_PASSWORD` env; read `web/AGENTS.md` first |
 
 Secrets: `DATABASE_URL` (Session pooler URI) in `.env` locally (web/.env.local symlinks it) and as a GitHub
 Actions secret. Never print it. Code strips invisible characters from it (`src/lib/env.ts`).
+Vercel CLI for the personal account: `./tools/vercel` (config in ~/.config/vercel-personal). The Vercel MCP connector can't see this project.
 GitHub CLI for the personal account: `GH_CONFIG_DIR=~/.config/gh-personal ./tools/gh ...` (tools/ is gitignored).
 Git remote uses SSH host alias `github-personal` (key `~/.ssh/id_ed25519_personal`).
 
@@ -53,6 +54,5 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
 - Currency: A$ and Rp both shown; ECB rate via frankfurter.dev (`web/lib/fx.ts`).
 
 ## Next
-1. Put the dashboard online behind a password (Vercel is connected).
-2. Pricing engine: rules on top of explore-calc signals (events, pace vs market, lead time, min-stay moves).
-3. Booking site + booking engine (Next.js in web/, Supabase for bookings, iCal sync with OTAs).
+1. Pricing engine: rules on top of explore-calc signals (events, pace vs market, lead time, min-stay moves).
+2. Booking site + booking engine (Next.js in web/, Supabase for bookings, iCal sync with OTAs).

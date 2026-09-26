@@ -4,3 +4,4 @@ data/
 tools/
 .vercel
 .env*
+dashboard-password.txt
