@@ -3,6 +3,7 @@
 
 import "server-only";
 import pg from "pg";
+import { databaseUrl } from "../../src/lib/env";
 import { HOUR, MINUTE, cached } from "./cache";
 
 // Return DATE columns as "YYYY-MM-DD" strings and BIGINT as numbers.
@@ -12,7 +13,7 @@ pg.types.setTypeParser(20, (v) => Number(v));
 const globalForDb = globalThis as unknown as { pool?: pg.Pool };
 // One pool per server process, surviving dev hot-reloads.
 export const pool = (globalForDb.pool ??= new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl(),
   ssl: { rejectUnauthorized: false },
   max: 3,
 }));

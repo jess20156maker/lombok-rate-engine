@@ -7,7 +7,7 @@ import { upsertWith } from "./sql.js";
 export const db = new pg.Pool({
   connectionString: databaseUrl(),
   ssl: { rejectUnauthorized: false },
-  max: 3,
+  max: 2,
 });
 
 /** Insert many rows in batches, updating on conflict (see src/lib/sql.ts). */

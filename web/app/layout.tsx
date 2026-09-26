@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Assistant } from "@/components/assistant";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <Assistant />
       </body>
     </html>
   );
