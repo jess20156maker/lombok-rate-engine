@@ -1,5 +1,11 @@
-# Nightly market collection. Runs at 01:00 Lombok time (17:00 UTC).
+# Nightly market collection, 01:00 Lombok time (17:00 UTC).
 # Needs the repository secret DATABASE_URL (Supabase Session pooler URI).
+#
+# Jobs run in parallel and each writes straight to Supabase:
+#   collect   Airbnb calendars, booking changes, watchlist prices
+#   prices    Airbnb prices for every date in the next 6 months, split 6 ways
+#   booking   Booking.com for the same dates, split 3 ways
+#   finish    retire stale places, match cross-listed places, pack old price days
 name: Nightly collection
 
 on:
@@ -16,12 +22,13 @@ concurrency:
   group: collection
   cancel-in-progress: false
 
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,14 +39,55 @@ jobs:
       - run: npm run check-env
       # The runner starts empty: pull listings, tiles and yesterday's calendars from Supabase.
       - run: npm run hydrate
-      - run: npm run daily
-      # Booking.com needs a real browser. Runs after Airbnb so a Booking.com
-      # problem never costs the Airbnb data.
-      - name: Install headless Chromium
-        if: success() || failure()
-        run: npx playwright install --with-deps chromium-headless-shell
-      - name: Booking.com collection
-        if: success() || failure()
-        run: npm run booking
+      # Prices are handled by the parallel jobs below.
+      - run: npm run daily -- --skip-prices
+
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run prices -- --shard ${{ matrix.shard }}/6
+
+  booking:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Booking.com needs a real browser.
+      - run: npx playwright install --with-deps chromium-headless-shell
+      - run: npm run booking -- --shard ${{ matrix.shard }}/3
         env:
           BOOKING_FORCE: ${{ inputs.force_booking || false }}
+
+  finish:
+    needs: [collect, prices, booking]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run finish

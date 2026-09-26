@@ -8,6 +8,7 @@
 //   npm run booking
 //   npm run booking -- --dates 3     (first 3 dates only, for testing)
 //   npm run booking -- --force       (re-collect dates already done today)
+//   npm run booking -- --shard 2/3   (the 2nd of 3 shares of the dates, for parallel machines)
 
 import "dotenv/config";
 import { MARKET, PRICE_SAMPLE } from "../config.js";
@@ -20,6 +21,7 @@ const args = process.argv.slice(2);
 const maxDates = args.includes("--dates") ? Number(args[args.indexOf("--dates") + 1]) : Infinity;
 // --force re-collects dates already done today (used to test a fresh environment).
 const force = args.includes("--force") || process.env.BOOKING_FORCE === "true";
+const [shardNo, shardCount] = (args.includes("--shard") ? args[args.indexOf("--shard") + 1] : "1/1").split("/").map(Number);
 const date = today();
 
 // Same check-in dates as the Airbnb price sampling, so the two compare directly.
@@ -39,7 +41,10 @@ const { rows: doneRows } = await db.query(
   [date],
 );
 const done = new Set(force ? [] : doneRows.map((r) => r.checkin));
-const todo = sampleCheckins().filter((c) => !done.has(c)).slice(0, maxDates);
+const todo = sampleCheckins()
+  .filter((_, i) => i % shardCount === shardNo - 1)
+  .filter((c) => !done.has(c))
+  .slice(0, maxDates);
 if (todo.length === 0) {
   console.log("Booking.com: all dates already collected today");
   await db.end();
@@ -110,15 +115,6 @@ async function saveListings(results: BookingResult[]) {
   );
 }
 
-// Places not seen for 30 days have probably left Booking.com.
-await db.query(
-  "update listings set active = false where platform = 'booking' and last_seen < ($1::date - 30)",
-  [date],
-);
-
-console.log(`Booking.com: ${seen.size} places seen across ${todo.length} dates`);
-
-// Link places listed on both platforms.
-const { linkPlatforms } = await import("./link.js");
-await linkPlatforms();
+console.log(`Booking.com shard ${shardNo}/${shardCount}: ${seen.size} places seen across ${todo.length} dates`);
+// Retiring stale places and cross-platform matching run once in `npm run finish`.
 await db.end();

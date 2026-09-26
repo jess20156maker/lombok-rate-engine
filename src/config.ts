@@ -17,13 +17,13 @@ export const AIRBNB_ROOM_TYPE = "Entire home/apt";
 // Sized so a nightly run fits GitHub Actions' free 2,000 minutes a month.
 export const REQUEST_DELAY_MS = { min: 800, max: 1800 };
 
-// Price sampling: which check-in dates to price each day (2-night stays).
-// Every 3 days for the next two weeks (where pricing moves), then fortnightly
-// out to 6 months: 16 dates a night.
+// Price sampling: which check-in dates to price each night (2-night stays).
+// Every date for the next 6 months. The nightly workflow splits the Airbnb
+// share across parallel machines (npm run prices -- --shard N/6).
 export const PRICE_SAMPLE = {
   nights: 2,
-  denseDays: 14,
-  denseStep: 3,
+  denseDays: 180,
+  denseStep: 1,
   sparseUntilDays: 180,
   sparseStep: 14,
 };

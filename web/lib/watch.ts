@@ -45,7 +45,7 @@ export async function loadWatchlist(): Promise<{ villas: WatchedVilla[]; audRate
   if (!watch.length) return { villas: [], audRate: fx.rate, rateDate: fx.date };
   const ids = watch.map((w) => w.id);
 
-  const [cals, direct, sampled] = await Promise.all([
+  const [cals, direct, sampled, packed] = await Promise.all([
     pool.query(
       `select listing_id, snapshot_date, from_date, nights from calendar_snapshots
         where platform = 'airbnb' and listing_id = any($1) order by snapshot_date`,
@@ -59,6 +59,13 @@ export async function loadWatchlist(): Promise<{ villas: WatchedVilla[]; audRate
     pool.query(
       `select listing_id, snapshot_date, checkin, nights, total from price_samples
         where platform = 'airbnb' and listing_id = any($1)`,
+      [ids],
+    ),
+    // Older days are packed into price_grid (one row per listing per day).
+    pool.query(
+      `select g.listing_id, g.snapshot_date, (g.from_date + (u.k - 1)::int)::date checkin, g.nights, u.per_night
+         from price_grid g, unnest(g.per_night) with ordinality u(per_night, k)
+        where g.platform = 'airbnb' and g.listing_id = any($1) and u.per_night is not null`,
       [ids],
     ),
   ]);
@@ -77,6 +84,8 @@ export async function loadWatchlist(): Promise<{ villas: WatchedVilla[]; audRate
     });
   for (const r of sampled.rows)
     add(r.listing_id, { snapshot: r.snapshot_date, checkin: r.checkin, nights: r.nights, available: true, perNight: Math.round(r.total / r.nights) });
+  for (const r of packed.rows)
+    add(r.listing_id, { snapshot: r.snapshot_date, checkin: r.checkin, nights: r.nights, available: true, perNight: r.per_night });
 
   const villas = watch.map((w): WatchedVilla => {
     const calRows = cals.rows.filter((c) => c.listing_id === w.id);

@@ -125,3 +125,20 @@ create table if not exists listing_links (
   primary key (airbnb_id, booking_id)
 );
 alter table listing_links enable row level security;
+
+-- Compact price history: one row per listing per collection day, instead of one
+-- row per check-in date. per_night[k] is the per-night price for a stay starting
+-- from_date + k (null = not open / not found). `npm run finish` moves days older
+-- than the last few out of price_samples into here.
+create table if not exists price_grid (
+  snapshot_date  date not null,
+  platform       text not null,
+  listing_id     text not null,
+  nights         smallint not null,
+  from_date      date not null,
+  per_night      int[] not null,
+  includes_taxes boolean not null default false,
+  primary key (snapshot_date, platform, listing_id, nights)
+);
+create index if not exists price_grid_listing on price_grid (platform, listing_id);
+alter table price_grid enable row level security;

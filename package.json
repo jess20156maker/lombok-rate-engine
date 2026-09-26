@@ -13,7 +13,9 @@
     "check-env": "tsx src/jobs/check-env.ts",
     "watch": "tsx src/jobs/watch.ts",
     "booking": "tsx src/jobs/booking.ts",
-    "link": "tsx src/jobs/link.ts"
+    "link": "tsx src/jobs/link.ts",
+    "prices": "tsx src/jobs/prices.ts",
+    "finish": "tsx src/jobs/finish.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
