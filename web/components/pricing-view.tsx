@@ -104,8 +104,8 @@ function Pricing({ villa }: { villa: Villa }) {
 
       {p.draft && (
         <div className="mb-5 rounded-lg border border-[#eda100] bg-[#eda100]/10 p-4 text-sm">
-          <strong>Draft settings.</strong> I started Mulai Villa as a 3-bedroom at Selong Belanak with placeholder price limits. Check the
-          settings below and tick &ldquo;These details are right&rdquo;: the prices follow them.
+          <strong>Draft settings.</strong> {p.name} is set up as a {p.bedrooms}-bedroom at {p.area} with placeholder price limits. Check the
+          settings at the bottom of the page and tick &ldquo;These details are right&rdquo;: the prices follow them.
         </div>
       )}
       {message && <div className="mb-4 rounded-md bg-accent-soft px-3 py-2 text-sm">{message}</div>}
