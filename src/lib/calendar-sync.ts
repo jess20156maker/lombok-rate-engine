@@ -2,8 +2,8 @@
 // spot double bookings. Shared by the scheduled job and the website's
 // "Sync now" button; callers pass their own query function.
 
-import { parseICal, type CalEvent } from "./ical.js";
-import { asDate, upsertWith, type Query } from "./sql.js";
+import { parseICal, type CalEvent } from "./ical";
+import { asDate, upsertWith, type Query } from "./sql";
 
 export type Channel = "airbnb" | "booking";
 

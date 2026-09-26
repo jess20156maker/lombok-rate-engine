@@ -1,8 +1,8 @@
 // Gather everything the pricing engine needs from Supabase.
 
-import { AREAS } from "../areas.js";
-import { asDate, type Query } from "../lib/sql.js";
-import type { CompInput, EngineInput, EventInput } from "./engine.js";
+import { AREAS } from "../areas";
+import { asDate, type Query } from "../lib/sql";
+import type { CompInput, EngineInput, EventInput } from "./engine";
 
 const DAY = 86_400_000;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
@@ -28,7 +28,10 @@ function nearbyAreas(area: string) {
     .map((a) => a.name);
 }
 
-export async function loadEngineInput(q: Query, p: Property, start: string, events: EventInput[], days = 365) {
+export type MarketInput = Awaited<ReturnType<typeof loadMarketInput>>;
+
+/** Comparable villas, calendars and prices: changes once a night, so callers may cache it. */
+export async function loadMarketInput(q: Query, p: Property, start: string, days = 365) {
   const { rows: snaps } = await q(
     "select distinct snapshot_date::text d from calendar_snapshots where platform = 'airbnb' order by 1 desc limit 10",
   );
@@ -110,6 +113,12 @@ export async function loadEngineInput(q: Query, p: Property, start: string, even
     prevNights: prevBy.has(id) ? align(prevBy.get(id)) : undefined,
   });
 
+  return { comps: compIds.map(comp), wider: widerIds.map(comp), compNote, latestSnapshot: latest, pace: prev ?? null };
+}
+
+export async function loadEngineInput(q: Query, p: Property, start: string, events: EventInput[], market?: MarketInput, days = 365) {
+  const m = market ?? (await loadMarketInput(q, p, start, days));
+
   // The villa's own bookings and blocks.
   const { rows: res } = await q(
     "select checkin, checkout from reservations where property_id = $1 and status = 'confirmed' and checkout > $2",
@@ -131,11 +140,11 @@ export async function loadEngineInput(q: Query, p: Property, start: string, even
     minRate: Number(p.min_rate),
     maxRate: Number(p.max_rate),
     baseMinStay: p.base_min_stay,
-    comps: compIds.map(comp),
-    wider: widerIds.map(comp),
+    comps: m.comps,
+    wider: m.wider,
     events,
     occupied,
     overrides,
   };
-  return { input, compNote, latestSnapshot: latest, pace: prev ?? null };
+  return { input, compNote: m.compNote, latestSnapshot: m.latestSnapshot, pace: m.pace };
 }
