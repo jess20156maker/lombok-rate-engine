@@ -4,7 +4,17 @@ import { useState, useTransition } from "react";
 import { toggleWatch } from "@/app/actions";
 
 /** ★ to follow a villa's prices and bookings day by day. */
-export function StarButton({ id, watched, label = false }: { id: string; watched: boolean; label?: boolean }) {
+export function StarButton({
+  id,
+  watched,
+  label = false,
+  platform = "airbnb",
+}: {
+  id: string;
+  watched: boolean;
+  label?: boolean;
+  platform?: "airbnb" | "booking" | "web";
+}) {
   const [on, setOn] = useState(watched);
   const [pending, start] = useTransition();
 
@@ -20,7 +30,7 @@ export function StarButton({ id, watched, label = false }: { id: string; watched
         setOn(!on); // optimistic
         start(async () => {
           try {
-            setOn(await toggleWatch(id));
+            setOn(await toggleWatch(id, platform));
           } catch {
             setOn(on);
           }

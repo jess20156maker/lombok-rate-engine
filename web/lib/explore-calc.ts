@@ -83,7 +83,7 @@ export function dayStats(data: ExploreData, idx: number[]): DayStat[] {
     for (const li of idx) {
       const l = data.listings[li];
       const ch = l.nights[i];
-      if (ch === undefined) continue;
+      if (ch === undefined || ch === "?") continue;
       if (ch === "0") blocked++;
       else {
         open++;
@@ -139,6 +139,7 @@ export function groupOcc(
     const a = acc.get(key(l)) ?? { blocked: 0, total: 0, listings: 0, prices: [] };
     a.listings++;
     for (let i = start; i < end && i < l.nights.length; i++) {
+      if (l.nights[i] === "?") continue;
       a.total++;
       if (l.nights[i] === "0") a.blocked++;
     }
@@ -368,7 +369,7 @@ export function rankPlaces(
   }
   const rows: PlaceRank[] = idx.map((li) => {
     const l = data.listings[li];
-    const slice = l.nights.slice(start, end);
+    const slice = l.nights.slice(start, end).replace(/\?/g, "");
     const booked = [...slice].filter((c) => c === "0").length;
     const price = median(inWin.get(li) ?? []) ?? median(any.get(li) ?? []);
     const occ = slice.length ? booked / slice.length : 0;

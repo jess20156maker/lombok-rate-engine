@@ -31,6 +31,8 @@ type Row = {
   external: boolean;
   /** dayIndex -> per-night price */
   prices: Map<number, number>;
+  /** dayIndex -> [last price seen while still open, date seen] for nights with no price now */
+  was: Map<number, [number, string]>;
   /** dayIndex -> true if booked/unavailable, false if open, undefined if unknown */
   status: (i: number) => boolean | undefined;
 };
@@ -71,7 +73,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
   const [areas, setAreas] = useState<string[]>([]);
   const [beds, setBeds] = useState<string[]>([]);
   // A search from the header looks across every site.
-  const [platform, setPlatform] = useState<Platform>(initialQuery ? "all" : "airbnb");
+  const [platform, setPlatform] = useState<Platform>("all");
   const [days, setDays] = useState(30);
   const [pricedOnly, setPricedOnly] = useState(true);
   const [sort, setSort] = useState<Sort>("reviews");
@@ -82,8 +84,20 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
   const idr = (n: number | null) => fmt(n, { currency: "IDR", audRate: data.audRate, rateDate: data.rateDate });
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-  // Every row, both platforms, built once.
+  // Every row, every platform, built once.
   const allRows = useMemo(() => {
+    const wasMap = (src: Record<number, [number, number, string][]>) => {
+      const m = new Map<number, Map<number, [number, string]>>();
+      for (const [di, arr] of Object.entries(src))
+        for (const [li, p, seen] of arr) {
+          if (!m.has(li)) m.set(li, new Map());
+          m.get(li)!.set(Number(di), [p, seen]);
+        }
+      return m;
+    };
+    const airWas = wasMap(data.wasPrices);
+    const bkWas = wasMap(data.booking.wasPrices);
+    const webWas = wasMap(data.web.wasPrices);
     const air = new Map<number, Map<number, number>>();
     for (const [di, arr] of Object.entries(data.prices))
       for (const [li, p] of arr) {
@@ -99,7 +113,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
     const bookingChecked = new Set(Object.keys(data.booking.prices).map(Number));
 
     const rows: Row[] = data.listings
-      .filter((l) => !l.dormant)
+      .filter((l) => l.platform === "airbnb" && !l.dormant) // Booking.com rows come from data.booking below
       .map((l, li) => ({ l, li }))
       .map(({ l }) => {
         const li = data.listings.indexOf(l);
@@ -115,6 +129,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
           href: `/listings/${l.id}`,
           external: false,
           prices: air.get(li) ?? new Map(),
+          was: airWas.get(li) ?? new Map(),
           status: (i: number) => (l.nights[i] === undefined ? undefined : l.nights[i] === "0"),
         };
       });
@@ -132,6 +147,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
         href: `https://www.booking.com/hotel/id/${b.slug}.html`,
         external: true,
         prices,
+        was: bkWas.get(bi) ?? new Map(),
         // Booking.com: only known on the dates we checked.
         status: (i: number) => (bookingChecked.has(i) ? !prices.has(i) : undefined),
       });
@@ -156,6 +172,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
         href: w.url,
         external: true,
         prices: webPrices.get(wi) ?? new Map(),
+        was: webWas.get(wi) ?? new Map(),
         status: (i: number) => (w.nights[i] === undefined || w.nights[i] === "?" ? undefined : w.nights[i] === "0"),
       });
     });
@@ -233,14 +250,34 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
           <div className="text-[10px] text-faint">{idr(p)}</div>
         </td>
       );
-    if (s === true)
+    if (s === true) {
+      const was = r.was.get(i);
+      const seen = was ? new Date(was[1] + "T00:00:00Z").toLocaleString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : null;
       return (
-        <td key={i} className="border-l border-line px-1 py-1" {...tipProps(t, () => `${label}: booked or unavailable`)}>
-          <div className="rounded-sm py-1.5 text-center text-[10px] text-white" style={{ background: "var(--seq-5)" }}>
-            booked
+        <td
+          key={i}
+          className="border-l border-line px-1 py-1"
+          {...tipProps(t, () =>
+            was ? (
+              <div>
+                <div className="font-semibold">Booked</div>
+                <div className="opacity-80">
+                  Last seen open at {aud(was[0])} · {idr(was[0])} a night, on {seen}
+                </div>
+                <div className="opacity-60">{label}</div>
+              </div>
+            ) : (
+              `${label}: booked or unavailable (no earlier price seen)`
+            ),
+          )}
+        >
+          <div className="rounded-sm px-1 py-1 text-center leading-tight text-white" style={{ background: "var(--seq-5)" }}>
+            <div className="text-[10px]">booked</div>
+            {was && <div className="text-[9px] opacity-85">was {aud(was[0])}</div>}
           </div>
         </td>
       );
+    }
     return (
       <td
         key={i}
@@ -386,7 +423,7 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
                       <tr key={r.key} className="hover:bg-accent-soft/60">
                         <td className="sticky left-0 z-10 max-w-72 border-b border-line bg-panel px-3 py-1.5">
                           <div className="flex items-center gap-1.5">
-                            {r.platform === "airbnb" && <StarButton id={r.id} watched={data.watched.includes(r.id)} />}
+                            <StarButton id={r.id} platform={r.platform} watched={data.watched.includes(`${r.platform}:${r.id}`)} />
                             {r.external ? (
                               <a href={r.href} target="_blank" rel="noreferrer" className="truncate text-sm hover:text-accent">
                                 {r.name}

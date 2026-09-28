@@ -1,6 +1,9 @@
 // Shapes shared by the server loader and the interactive Explore page.
 
 export type ExploreListing = {
+  /** Airbnb listings have full calendars; Booking.com-only places are built from the dates searched. */
+  platform: "airbnb" | "booking";
+  url: string;
   id: string;
   name: string;
   area: string;
@@ -10,7 +13,7 @@ export type ExploreListing = {
   beds: string; // bedroom group: "1" | "2" | "3" | "4+"
   bookingSlug: string | null; // also on Booking.com: booking.com/hotel/id/<slug>.html
   dormant: boolean;
-  /** One char per night from ExploreData.from: "1" open, "c" open no check-in, "0" blocked. */
+  /** One char per night from ExploreData.from: "1" open, "c" open no check-in, "0" blocked, "?" unknown. */
   nights: string;
   /** Minimum stay where it changes, as [dayIndex, nights]. */
   minStay: [number, number][];
@@ -34,6 +37,7 @@ export type BookingListing = {
   id: string;
   name: string;
   area: string;
+  bedrooms: number | null;
   beds: string;
   rating: string | null; // out of 10
   slug: string;
@@ -48,6 +52,8 @@ export type ExploreData = {
   listings: ExploreListing[];
   /** Per-night price samples: dayIndex -> [listingIndex, perNight][] */
   prices: Record<number, [number, number][]>;
+  /** Nights with no price now (booked): the last price seen while still open. dayIndex -> [listingIndex, perNight, seenOn][] */
+  wasPrices: Record<number, [number, number, string][]>;
   /** Likely bookings detected since the previous snapshot: dayIndex -> listing indexes newly booked that night */
   newBookings: Record<number, number[]>;
   comparedTo: string | null;
@@ -57,14 +63,22 @@ export type ExploreData = {
     listings: BookingListing[];
     /** Sampled check-in dayIndex -> [bookingListingIndex, perNight incl. taxes][] (places open that night). */
     prices: Record<number, [number, number][]>;
+    /** Last price seen before a night stopped being available. */
+    wasPrices: Record<number, [number, number, string][]>;
+    /** Day indexes searched on Booking.com in the latest collection. */
+    checked: number[];
+    /** Booking.com price ÷ Airbnb price for the same place and night (median of places on both). */
+    ratio: number;
   };
   /** Competitor websites: a rate and availability for every night. */
   web: {
     listings: { id: string; name: string; area: string; beds: string; url: string; nights: string }[];
     /** dayIndex -> [webListingIndex, perNight incl. taxes][] (open nights only). */
     prices: Record<number, [number, number][]>;
+    /** Last price seen before a night sold out. */
+    wasPrices: Record<number, [number, number, string][]>;
   };
-  watched: string[]; // listing ids on the watchlist
+  watched: string[]; // "platform:id" for every listing on the watchlist
   audRate: number; // IDR per AUD
   rateDate: string;
 };

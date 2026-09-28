@@ -105,7 +105,9 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
   // Default the day panel to the busiest night in the window.
   const selected = day ?? summary.busiest?.i ?? null;
   const selectedStat = selected != null ? stats[selected] : null;
-  const bDays = useMemo(() => bookingDays(data, filters, stats), [data, filters, stats]);
+  // The comparison chart sets Airbnb's own figures against Booking.com's.
+  const airbnbStats = useMemo(() => dayStats(data, idx.filter((i) => data.listings[i].platform === "airbnb")), [data, idx]);
+  const bDays = useMemo(() => bookingDays(data, filters, airbnbStats), [data, filters, airbnbStats]);
   const bookingInView = useMemo(
     () =>
       data.booking.listings.filter(
@@ -176,9 +178,9 @@ export function Explore({ data, initial }: { data: ExploreData; initial: Initial
           {scope[0].toUpperCase() + scope.slice(1)}, {windowLabel}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {idx.length} places on Airbnb
+          {idx.length} places counted: {idx.filter((i) => data.listings[i].platform === "airbnb").length} on Airbnb
           {data.booking.snapshot
-            ? ` · ${bookingInView.length} on Booking.com (${bookingInView.filter((l) => l.airbnbId).length} on both)`
+            ? ` (${bookingInView.filter((l) => l.airbnbId).length} also on Booking.com) + ${idx.filter((i) => data.listings[i].platform === "booking").length} only on Booking.com`
             : ""}{" "}
           · calendars collected {dayLabel(data.snapshot)}
           {data.comparedTo ? ` · bookings compared with ${dayLabel(data.comparedTo)}` : " · new-booking tracking starts after tonight's run"}

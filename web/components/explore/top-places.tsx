@@ -59,7 +59,11 @@ export function TopPlaces({
   const area = picked && areas.includes(picked) ? picked : areas[0];
 
   const rows = useMemo(() => {
-    const inArea = idx.filter((li) => data.listings[li].area === area && (!reviewedOnly || data.listings[li].rating));
+    // "Reviewed only" guards against Airbnb places that aren't live yet; Booking.com-only
+    // places are live by definition (they came back with real prices).
+    const inArea = idx.filter(
+      (li) => data.listings[li].area === area && (!reviewedOnly || data.listings[li].rating || data.listings[li].platform === "booking"),
+    );
     return { list: rankPlaces(data, inArea, range, by).slice(0, 10), total: inArea.length };
   }, [data, idx, range, by, area, reviewedOnly]);
 
@@ -122,19 +126,27 @@ export function TopPlaces({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <StarButton id={l.id} watched={data.watched.includes(l.id)} />
-                      <Link href={`/listings/${l.id}`} className="block truncate text-sm font-medium hover:text-accent">
-                        {l.name || "Untitled"}
-                      </Link>
+                      <StarButton id={l.id} platform={l.platform} watched={data.watched.includes(`${l.platform}:${l.id}`)} />
+                      {l.platform === "airbnb" ? (
+                        <>
+                          <Link href={`/listings/${l.id}`} className="block truncate text-sm font-medium hover:text-accent">
+                            {l.name || "Untitled"}
+                          </Link>
+                        </>
+                      ) : (
+                        <a href={l.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium hover:text-accent">
+                          {l.name || "Untitled"}
+                        </a>
+                      )}
                     </div>
                     <div className="truncate text-xs text-muted">
                       {l.bedrooms == null ? "" : l.bedrooms === 0 ? "Studio · " : `${l.bedrooms} bed · `}
                       {l.rating ? `★ ${l.rating}` : "New / no reviews"}
                       {" · "}
-                      <a href={`https://www.airbnb.com/rooms/${l.id}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                        Airbnb ↗
+                      <a href={l.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                        {l.platform === "airbnb" ? "Airbnb" : "Booking.com"} ↗
                       </a>
-                      {l.bookingSlug && (
+                      {l.platform === "airbnb" && l.bookingSlug && (
                         <>
                           {" · "}
                           <a

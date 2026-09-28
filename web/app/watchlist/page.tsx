@@ -45,21 +45,27 @@ export default async function WatchlistPage() {
       ) : (
         <div className="grid gap-6">
           {villas.map((v) => (
-            <section key={v.id} className="min-w-0 overflow-hidden rounded-lg border border-line bg-panel p-5">
+            <section key={`${v.platform}:${v.id}`} className="min-w-0 overflow-hidden rounded-lg border border-line bg-panel p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <Link href={`/listings/${v.id}`} className="break-words text-lg font-semibold hover:text-accent">
-                    {v.name}
-                  </Link>
+                  {v.platform === "airbnb" ? (
+                    <Link href={`/listings/${v.id}`} className="break-words text-lg font-semibold hover:text-accent">
+                      {v.name}
+                    </Link>
+                  ) : (
+                    <a href={v.url} target="_blank" rel="noreferrer" className="break-words text-lg font-semibold hover:text-accent">
+                      {v.name}
+                    </a>
+                  )}
                   <div className="mt-0.5 text-sm text-muted">
                     {v.area} · {v.bedrooms == null ? "" : `${v.bedrooms} bed · `}
                     {v.rating ? `★ ${v.rating}` : "no reviews"} · watching since {dayLabel(v.addedAt)} ·{" "}
-                    <a href={`https://www.airbnb.com/rooms/${v.id}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-                      Airbnb ↗
+                    <a href={v.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                      {v.platform === "airbnb" ? "Airbnb" : v.platform === "booking" ? "Booking.com" : "Website"} ↗
                     </a>
                   </div>
                 </div>
-                <StarButton id={v.id} watched label />
+                <StarButton id={v.id} platform={v.platform as "airbnb" | "booking" | "web"} watched label />
               </div>
 
               <div className="mt-5 grid gap-6 md:grid-cols-[10rem_1fr_1fr]">

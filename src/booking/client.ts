@@ -109,9 +109,11 @@ function parse(r: any): BookingResult | null {
   const b = r?.basicPropertyData;
   if (!b?.id || !b.location) return null;
   const unit = r.matchingUnitConfigurations?.commonConfiguration;
-  // Booking scores out of 10: "9.7 (11)".
-  const rv = b.reviews;
-  const scoreText = rv?.totalScore > 0 && rv?.reviewsCount > 0 ? `${Number(rv.totalScore).toFixed(1)} (${rv.reviewsCount})` : null;
+  // Booking scores out of 10: "9.7 (11)". The first page load calls it
+  // reviews {totalScore, reviewsCount}; later pages reviewScore {score, reviewCount}.
+  const score = b.reviews?.totalScore ?? b.reviewScore?.score;
+  const count = b.reviews?.reviewsCount ?? b.reviewScore?.reviewCount;
+  const scoreText = score > 0 && count > 0 ? `${Number(score).toFixed(1)} (${count})` : null;
   const amount = r.priceDisplayInfoIrene?.displayPrice?.amountPerStay?.amountUnformatted;
   return {
     id: String(b.id),

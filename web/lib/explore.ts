@@ -8,11 +8,11 @@ import eventsFile from "../../db/events.json";
 import { bedroomGroup, pool } from "./data";
 import { HOUR, MINUTE, cached } from "./cache";
 import { audRate } from "./fx";
-import { watchedIds } from "./watch";
+import { watchedKeys } from "./watch";
 import type { BookingListing, ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
-const PAYLOAD_VERSION = 4;
+const PAYLOAD_VERSION = 6;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
@@ -33,18 +33,50 @@ export async function loadExplore(): Promise<ExploreData | null> {
   const [booking, web, watched] = await Promise.all([
     cached(`booking:v${PAYLOAD_VERSION}:${snapshot}`, 10 * MINUTE, () => loadBooking(base.from, base.days)),
     cached(`web:v${PAYLOAD_VERSION}:${snapshot}`, 10 * MINUTE, () => loadWeb(base.from, base.days)),
-    watchedIds(),
+    watchedKeys(),
   ]);
   const slugByAirbnb = new Map(
     booking.listings.filter((l) => l.airbnbId).map((l) => [l.airbnbId!, l.slug] as [string, string]),
   );
-  return {
-    ...base,
-    listings: base.listings.map((l) => ({ ...l, bookingSlug: slugByAirbnb.get(l.id) ?? null })),
-    booking,
-    web,
-    watched: [...watched],
-  };
+  // Villas only on Booking.com join the market figures: availability from the
+  // dates searched, prices put on Airbnb's footing with the measured gap.
+  const listings = base.listings.map((l) => ({ ...l, bookingSlug: slugByAirbnb.get(l.id) ?? null }));
+  const prices: ExploreData["prices"] = Object.fromEntries(Object.entries(base.prices).map(([d, a]) => [d, [...a]]));
+  const wasPrices: ExploreData["wasPrices"] = Object.fromEntries(Object.entries(base.wasPrices).map(([d, a]) => [d, [...a]]));
+  const checked = new Set(booking.checked);
+  const openBy = new Map<number, Set<number>>();
+  for (const [d, arr] of Object.entries(booking.prices)) for (const [bi] of arr) {
+    if (!openBy.has(bi)) openBy.set(bi, new Set());
+    openBy.get(bi)!.add(Number(d));
+  }
+  const newIndex = new Map<number, number>();
+  booking.listings.forEach((b, bi) => {
+    if (b.airbnbId) return;
+    let nights = "";
+    for (let d = 0; d < base.days; d++) nights += checked.has(d) ? (openBy.get(bi)?.has(d) ? "1" : "0") : "?";
+    newIndex.set(bi, listings.length);
+    listings.push({
+      platform: "booking",
+      url: `https://www.booking.com/hotel/id/${b.slug}.html`,
+      id: b.id,
+      name: b.name,
+      area: b.area,
+      kind: "Booking.com",
+      bedrooms: b.bedrooms,
+      rating: b.rating,
+      beds: b.beds,
+      bookingSlug: b.slug,
+      dormant: false,
+      nights,
+      minStay: [],
+    });
+  });
+  for (const [d, arr] of Object.entries(booking.prices))
+    for (const [bi, p] of arr) if (newIndex.has(bi)) (prices[Number(d)] ??= []).push([newIndex.get(bi)!, Math.round(p / booking.ratio)]);
+  for (const [d, arr] of Object.entries(booking.wasPrices))
+    for (const [bi, p, seen] of arr) if (newIndex.has(bi)) (wasPrices[Number(d)] ??= []).push([newIndex.get(bi)!, Math.round(p / booking.ratio), seen]);
+
+  return { ...base, listings, prices, wasPrices, booking, web, watched: [...watched] };
 }
 
 async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched" | "booking" | "web">> {
@@ -86,6 +118,8 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
       .filter((e, i, arr) => i === arr.length - 1 || arr[i + 1][0] > e[0]);
     indexOf.set(l.id, listings.length);
     listings.push({
+      platform: "airbnb",
+      url: `https://www.airbnb.com/rooms/${l.id}`,
       id: l.id,
       name: l.name,
       area: l.area,
@@ -125,6 +159,7 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
     areas: AREAS.map((a) => a.name).filter((a) => present.has(a)),
     listings,
     prices: priceMap,
+    wasPrices: await wasPricesFor("airbnb", from, days, indexOf, priceMap),
     newBookings,
     comparedTo: changes.rows[0]?.compared_to ?? null,
     events: loadEvents(),
@@ -137,7 +172,7 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
 async function loadBooking(from: string, days: number): Promise<ExploreData["booking"]> {
   const { rows: latest } = await pool.query("select max(snapshot_date) d from price_sample_dates where platform = 'booking'");
   const snapshot: string | null = latest[0]?.d ?? null;
-  if (!snapshot) return { snapshot: null, listings: [], prices: {} };
+  if (!snapshot) return { snapshot: null, listings: [], prices: {}, wasPrices: {}, checked: [], ratio: 0.87 };
 
   const [ls, ps, links] = await Promise.all([
     pool.query("select id, name, area, bedrooms, rating, slug from listings where platform = 'booking' and active"),
@@ -153,6 +188,7 @@ async function loadBooking(from: string, days: number): Promise<ExploreData["boo
     id: l.id,
     name: l.name,
     area: l.area,
+    bedrooms: l.bedrooms,
     beds: bedroomGroup(l.bedrooms),
     rating: l.rating,
     slug: l.slug ?? "",
@@ -166,14 +202,32 @@ async function loadBooking(from: string, days: number): Promise<ExploreData["boo
     if (li == null || di < 0 || di >= days) continue;
     (prices[di] ??= []).push([li, p.per_night]);
   }
-  return { snapshot, listings, prices };
+  const [checkedRows, ratioRows, wasPrices] = await Promise.all([
+    pool.query("select checkin::text from price_sample_dates where platform = 'booking' and snapshot_date = $1", [snapshot]),
+    // Same gap the pricing engine measures (src/pricing/load.ts).
+    pool.query(
+      `with per as (
+         select k.booking_id, percentile_cont(0.5) within group (order by (b.total::float8 / b.nights) / (a.total::float8 / a.nights)) r
+           from listing_links k
+           join price_samples b on b.platform = 'booking' and b.listing_id = k.booking_id and b.snapshot_date = $1
+           join price_samples a on a.platform = 'airbnb' and a.listing_id = k.airbnb_id and a.snapshot_date = b.snapshot_date and a.checkin = b.checkin
+          group by 1)
+       select percentile_cont(0.5) within group (order by r) ratio, count(*) n from per`,
+      [snapshot],
+    ),
+    wasPricesFor("booking", from, days, index, prices),
+  ]);
+  const measured = Number(ratioRows.rows[0]?.ratio);
+  const ratio = ratioRows.rows[0]?.n >= 10 && measured > 0.6 && measured < 1.4 ? measured : 0.87;
+  const checked = checkedRows.rows.map((r) => dayIndex(from, r.checkin)).filter((d) => d >= 0 && d < days);
+  return { snapshot, listings, prices, wasPrices, checked, ratio };
 }
 
 /** Competitor websites: latest calendar and nightly rates for each tracked room. */
 async function loadWeb(from: string, days: number): Promise<ExploreData["web"]> {
   const { rows: latest } = await pool.query("select max(snapshot_date)::text d from calendar_snapshots where platform = 'web'");
   const snap: string | null = latest[0]?.d ?? null;
-  if (!snap) return { listings: [], prices: {} };
+  if (!snap) return { listings: [], prices: {}, wasPrices: {} };
   const [ls, cals, ps] = await Promise.all([
     pool.query("select id, name, area, bedrooms, slug from listings where platform = 'web' and active order by name"),
     pool.query("select listing_id, from_date::text, nights from calendar_snapshots where platform = 'web' and snapshot_date = $1", [snap]),
@@ -195,5 +249,41 @@ async function loadWeb(from: string, days: number): Promise<ExploreData["web"]> 
     if (li == null || di < 0 || di >= days) continue;
     (prices[di] ??= []).push([li, p.per_night]);
   }
-  return { listings, prices };
+  return { listings, prices, wasPrices: await wasPricesFor("web", from, days, index, prices) };
+}
+
+/**
+ * For nights with no current price (booked or sold out), the most recent price
+ * seen for that place and night on an earlier collection day, from recent
+ * checks and the packed history.
+ */
+async function wasPricesFor(
+  platform: "airbnb" | "booking" | "web",
+  from: string,
+  days: number,
+  index: Map<string, number>,
+  current: Record<number, [number, number][]>,
+): Promise<Record<number, [number, number, string][]>> {
+  const until = new Date(Date.parse(from) + (days - 1) * DAY).toISOString().slice(0, 10);
+  const { rows } = await pool.query(
+    `select distinct on (listing_id, checkin) listing_id, checkin::text, per_night, snapshot_date::text seen from (
+       select listing_id, checkin, (total / nights)::int per_night, snapshot_date
+         from price_samples where platform = $1 and checkin between $2 and $3
+       union all
+       select g.listing_id, (g.from_date + (u.k - 1)::int)::date, u.per_night, g.snapshot_date
+         from price_grid g, unnest(g.per_night) with ordinality u(per_night, k)
+        where g.platform = $1 and u.per_night is not null and (g.from_date + (u.k - 1)::int) between $2 and $3
+     ) x order by listing_id, checkin, snapshot_date desc`,
+    [platform, from, until],
+  );
+  const priced = new Set<string>();
+  for (const [di, arr] of Object.entries(current)) for (const [li] of arr) priced.add(`${li}|${di}`);
+  const out: Record<number, [number, number, string][]> = {};
+  for (const r of rows) {
+    const li = index.get(r.listing_id);
+    const di = dayIndex(from, r.checkin);
+    if (li == null || di < 0 || di >= days || priced.has(`${li}|${di}`)) continue;
+    (out[di] ??= []).push([li, r.per_night, r.seen]);
+  }
+  return out;
 }

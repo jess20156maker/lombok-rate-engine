@@ -119,16 +119,17 @@ export function PlatformCompare({
   bookingCount: number;
 }) {
   const series = (a: (d: BookingDay) => number | null, b: (d: BookingDay) => number | null): Series[] => [
-    { key: "airbnb", label: "Airbnb", color: "var(--series-1)", get: a },
-    { key: "booking", label: "Booking.com", color: "var(--series-2)", get: b },
+    { key: "airbnb", label: "Airbnb", color: "var(--airbnb)", get: a },
+    { key: "booking", label: "Booking.com", color: "var(--booking)", get: b },
   ];
   return (
     <section className="mb-6 rounded-lg border border-line bg-panel p-5">
       <h2 className="text-sm font-semibold">Airbnb vs Booking.com</h2>
       <p className="mt-0.5 text-xs text-muted">
-        {bookingCount} places on Booking.com in this selection, {bothCount} of them also on Airbnb. Booking.com is checked on
-        16 stay dates a night. It has no public calendar, so &ldquo;not available&rdquo; there means booked, closed, or
-        needing a longer stay. Booking.com prices include taxes and fees; Airbnb&apos;s are before taxes.
+        {bookingCount} places on Booking.com in this selection, {bothCount} of them also on Airbnb. Booking.com is checked for
+        every date in the next 6 months, every night. It has no public calendar, so &ldquo;not available&rdquo; there means
+        booked, closed, or needing a longer stay. Prices are as each site shows them: Booking.com includes taxes, Airbnb
+        includes its guest fees, and for the same villa Booking.com usually comes out a little cheaper.
       </p>
       <div className="mt-4 grid gap-8 lg:grid-cols-2">
         <TwoLines

@@ -8,8 +8,8 @@ import { TooltipProvider, tipProps, useTooltip } from "./explore/tooltip";
 
 // Categorical colours in fixed order; blocks are neutral, not a series.
 const SOURCES: Record<string, { label: string; color: string }> = {
-  airbnb: { label: "Airbnb", color: "var(--series-1)" },
-  booking: { label: "Booking.com", color: "var(--series-2)" },
+  airbnb: { label: "Airbnb", color: "var(--airbnb)" },
+  booking: { label: "Booking.com", color: "var(--booking)" },
   direct: { label: "Direct", color: "var(--series-3)" },
   manual: { label: "Booked", color: "var(--series-4)" },
   block: { label: "Blocked", color: "var(--faint)" },

@@ -49,34 +49,45 @@ export async function linkPlatforms() {
   const air = rows.filter((r) => r.platform === "airbnb");
   const bk = rows.filter((r) => r.platform === "booking");
 
-  const links: { airbnb_id: string; booking_id: string; distance_m: number; name_score: number }[] = [];
-  const taken = new Set<string>();
+  // How many listings use each word: a word only a few places use ("Kirikan",
+  // "Deia") is strong evidence two listings are the same property.
+  const df = new Map<string, number>();
+  for (const r of rows) for (const w of tokens(r.name)) df.set(w, (df.get(w) ?? 0) + 1);
+
+  type Pair = { airbnb_id: string; booking_id: string; distance_m: number; name_score: number; rank: number };
+  const pairs: Pair[] = [];
   for (const b of bk) {
-    let best: (typeof links)[number] | null = null;
-    let bestRank = 0;
+    const bt = tokens(b.name);
     for (const a of air) {
       const d = metres(a.lat, a.lng, b.lat, b.lng);
-      if (d > 150) continue;
+      if (d > 500) continue;
       const { score: s, shared, shortest } = nameMatch(a.name, b.name);
+      const rareShared = [...bt].filter((w) => tokens(a.name).has(w) && (df.get(w) ?? 0) <= 4).length;
       const sameBeds = a.bedrooms != null && a.bedrooms === b.bedrooms;
       const ok =
         // Two or more distinctive words in common ("Villa Deia" / "Villa Deia - Calm Oasis").
-        (shared >= 2 && s >= 0.5) ||
+        (d <= 150 && shared >= 2 && s >= 0.5) ||
         // A one-word name that matches, with the same bedrooms ("Akarai Villa").
-        (shortest === 1 && shared === 1 && sameBeds) ||
-        // Practically the same spot, same bedrooms, and some name overlap.
-        (d <= 25 && sameBeds && shared >= 1);
+        (d <= 150 && shortest === 1 && shared === 1 && sameBeds) ||
+        // A rare word in common and the same size nearby ("Kirikan Villas" / "Kirikan Villas - Jungle Paradise").
+        (d <= 500 && rareShared >= 1 && sameBeds) ||
+        // Essentially the same spot and the same size, whatever the names say.
+        (d <= 30 && sameBeds);
       if (!ok) continue;
-      const rank = s * 2 + (sameBeds ? 0.5 : 0) + (1 - d / 150);
-      if (rank > bestRank && !taken.has(a.id)) {
-        best = { airbnb_id: a.id, booking_id: b.id, distance_m: Math.round(d), name_score: Math.round(s * 100) / 100 };
-        bestRank = rank;
-      }
+      const rank = s * 2 + rareShared + (sameBeds ? 0.5 : 0) + (1 - d / 500);
+      pairs.push({ airbnb_id: a.id, booking_id: b.id, distance_m: Math.round(d), name_score: Math.round(s * 100) / 100, rank });
     }
-    if (best) {
-      links.push(best);
-      taken.add(best.airbnb_id);
-    }
+  }
+  // Most confident pairs first, each listing used once.
+  pairs.sort((x, y) => y.rank - x.rank);
+  const usedA = new Set<string>();
+  const usedB = new Set<string>();
+  const links: Omit<Pair, "rank">[] = [];
+  for (const { rank: _rank, ...p } of pairs) {
+    if (usedA.has(p.airbnb_id) || usedB.has(p.booking_id)) continue;
+    usedA.add(p.airbnb_id);
+    usedB.add(p.booking_id);
+    links.push(p);
   }
 
   await db.query("delete from listing_links");

@@ -3,7 +3,17 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 
-export type MapPoint = { id: string; name: string; area: string; lat: number; lng: number; blocked30: number | null; beds: number | null };
+export type MapPoint = {
+  id: string;
+  name: string;
+  area: string;
+  lat: number;
+  lng: number;
+  blocked30: number | null;
+  beds: number | null;
+  url: string;
+  platform: string;
+};
 export type MapArea = { name: string; lat: number; lng: number };
 
 // Eight distinguishable hues, assigned to areas in a fixed order.
@@ -34,7 +44,7 @@ export function ListingMap({ points, areas }: { points: MapPoint[]; areas: MapAr
           fillOpacity: 0.25 + 0.65 * (p.blocked30 ?? 0),
         })
           .bindPopup(
-            `<a href="/listings/${p.id}"><b>${p.name.replace(/</g, "&lt;")}</b></a><br>${p.area} · ${p.beds ?? "?"} bed · ` +
+            `<a href="${p.url.replace(/"/g, "")}"${p.url.startsWith("http") ? ' target="_blank" rel="noreferrer"' : ""}><b>${p.name.replace(/</g, "&lt;")}</b></a><br>${p.platform} · ${p.area} · ${p.beds ?? "?"} bed · ` +
               `${p.blocked30 == null ? "–" : Math.round(p.blocked30 * 100) + "%"} blocked next 30 nights`,
           )
           .addTo(map);
