@@ -17,15 +17,15 @@ export type Property = {
   min_rate: number;
   max_rate: number;
   base_min_stay: number;
+  lat?: number | null;
+  lng?: number | null;
 };
 
-/** Beaches nearest to `area`, nearest first (including itself). */
-function nearbyAreas(area: string) {
-  const me = AREAS.find((a) => a.name === area);
-  if (!me) return [area];
-  return [...AREAS]
-    .sort((a, b) => (a.lat - me.lat) ** 2 + (a.lng - me.lng) ** 2 - ((b.lat - me.lat) ** 2 + (b.lng - me.lng) ** 2))
-    .map((a) => a.name);
+/** Straight-line distance in km. */
+function km(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const dLat = (aLat - bLat) * 111.32;
+  const dLng = (aLng - bLng) * 111.32 * Math.cos((aLat * Math.PI) / 180);
+  return Math.hypot(dLat, dLng);
 }
 
 export type MarketInput = Awaited<ReturnType<typeof loadMarketInput>>;
@@ -39,26 +39,40 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
   // A snapshot about a week older, for booking pace (none until a week of history exists).
   const prev: string | undefined = snaps.find((s) => dayIndex(s.d, latest) >= 6)?.d;
 
-  const areas = nearbyAreas(p.area);
-  const { rows: listings } = await q(
-    "select id, area, bedrooms, rating from listings where platform = 'airbnb' and active and area = any($1)",
-    [areas.slice(0, 3)],
-  );
+  // Where the villa is: its own coordinates, else its beach's centre.
+  const centre = AREAS.find((a) => a.name === p.area);
+  const here = { lat: p.lat ?? centre?.lat ?? -8.87, lng: p.lng ?? centre?.lng ?? 116.16 };
 
-  // Comparable set: same beach and bedrooms; widen by bedrooms, then by neighbouring beaches, until there are enough.
-  const reviewed = listings.filter((l) => l.rating);
-  const pick = (f: (l: (typeof listings)[number]) => boolean) => reviewed.filter(f).map((l) => l.id as string);
-  let compIds = pick((l) => l.area === p.area && l.bedrooms === p.bedrooms);
-  let compNote = `${p.bedrooms}-bedroom villas at ${p.area}`;
-  if (compIds.length < 8) {
-    compIds = pick((l) => l.area === p.area && Math.abs(l.bedrooms - p.bedrooms) <= 1);
-    compNote = `${p.bedrooms - 1}–${p.bedrooms + 1} bedroom villas at ${p.area}`;
+  // Live listings: reviewed, or with real prices in the last month (new villas
+  // have no reviews yet but are clearly taking bookings).
+  const { rows: all } = await q(
+    `select l.id, l.lat, l.lng, l.bedrooms, (l.rating is not null) reviewed,
+            exists (select 1 from price_samples s where s.platform = 'airbnb' and s.listing_id = l.id and s.snapshot_date >= ($1::date - $2::int))
+         or exists (select 1 from price_grid g where g.platform = 'airbnb' and g.listing_id = l.id and g.snapshot_date >= ($1::date - $2::int)) priced
+       from listings l where l.platform = 'airbnb' and l.active`,
+    [latest, HISTORY_DAYS],
+  );
+  const listings = all
+    .filter((l) => l.reviewed || l.priced)
+    .map((l) => ({ id: l.id as string, bedrooms: l.bedrooms as number | null, dist: km(here.lat, here.lng, l.lat, l.lng) }));
+
+  // Comparable set: same bedrooms nearest first, widening the radius, then
+  // allowing one bedroom either way, until there are at least 10.
+  const within = (r: number, bedTolerance: number) =>
+    listings
+      .filter((l) => l.dist <= r && l.bedrooms != null && Math.abs(l.bedrooms - p.bedrooms) <= bedTolerance)
+      .map((l) => l.id);
+  let compIds: string[] = [];
+  let compNote = "";
+  search: for (const tol of [0, 1]) {
+    for (const r of [3, 5, 8, 12]) {
+      compIds = within(r, tol);
+      compNote = `${tol ? `${p.bedrooms - 1}–${p.bedrooms + 1}` : p.bedrooms}-bedroom villas within ${r} km`;
+      if (compIds.length >= 10) break search;
+    }
   }
-  if (compIds.length < 8) {
-    compIds = pick((l) => areas.slice(0, 3).includes(l.area) && Math.abs(l.bedrooms - p.bedrooms) <= 1);
-    compNote = `${p.bedrooms - 1}–${p.bedrooms + 1} bedroom villas at ${areas.slice(0, 3).join(", ")}`;
-  }
-  const widerIds = listings.filter((l) => l.area === p.area).map((l) => l.id as string);
+  // Every live villa within 5 km, any size: fills in nights the comparable set doesn't cover.
+  const widerIds = listings.filter((l) => l.dist <= 5).map((l) => l.id);
   const allIds = [...new Set([...compIds, ...widerIds])];
 
   const [cals, prevCals, latestPrices, packedPrices] = await Promise.all([
