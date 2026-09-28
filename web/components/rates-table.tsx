@@ -8,7 +8,7 @@ import type { ExploreData } from "@/lib/explore-types";
 import { fmt } from "@/lib/money";
 import { TooltipProvider, tipProps, useTooltip } from "./explore/tooltip";
 
-type Platform = "airbnb" | "booking" | "both";
+type Platform = "airbnb" | "booking" | "web" | "all";
 type Sort = "reviews" | "price" | "booked" | "name";
 const GROUPS = ["1", "2", "3", "4+"];
 const RANGES = [
@@ -20,7 +20,7 @@ const RANGES = [
 
 type Row = {
   key: string;
-  platform: "airbnb" | "booking";
+  platform: "airbnb" | "booking" | "web";
   id: string;
   name: string;
   area: string;
@@ -135,6 +135,29 @@ function Rates({ data }: { data: ExploreData }) {
         status: (i: number) => (bookingChecked.has(i) ? !prices.has(i) : undefined),
       });
     });
+    // Competitor websites: a rate and sold-out flag for every night.
+    const webPrices = new Map<number, Map<number, number>>();
+    for (const [di, arr] of Object.entries(data.web.prices))
+      for (const [li, p] of arr) {
+        if (!webPrices.has(li)) webPrices.set(li, new Map());
+        webPrices.get(li)!.set(Number(di), p);
+      }
+    data.web.listings.forEach((w, wi) => {
+      rows.push({
+        key: `w${w.id}`,
+        platform: "web",
+        id: w.id,
+        name: w.name,
+        area: w.area,
+        beds: w.beds,
+        rating: null,
+        reviews: 0,
+        href: w.url,
+        external: true,
+        prices: webPrices.get(wi) ?? new Map(),
+        status: (i: number) => (w.nights[i] === undefined || w.nights[i] === "?" ? undefined : w.nights[i] === "0"),
+      });
+    });
     return rows;
   }, [data]);
 
@@ -142,7 +165,7 @@ function Rates({ data }: { data: ExploreData }) {
     const all = Array.from({ length: Math.min(days, data.days) }, (_, i) => i);
     if (!pricedOnly) return all;
     const priced = new Set<number>();
-    for (const r of allRows) if (platform === "both" || r.platform === platform) for (const d of r.prices.keys()) priced.add(d);
+    for (const r of allRows) if (platform === "all" || r.platform === platform) for (const d of r.prices.keys()) priced.add(d);
     return all.filter((i) => priced.has(i));
   }, [days, data.days, pricedOnly, allRows, platform]);
 
@@ -150,7 +173,7 @@ function Rates({ data }: { data: ExploreData }) {
     const ql = q.trim().toLowerCase();
     const rows = allRows.filter(
       (r) =>
-        (platform === "both" || r.platform === platform) &&
+        (platform === "all" || r.platform === platform) &&
         (!areas.length || areas.includes(r.area)) &&
         (!beds.length || beds.includes(r.beds)) &&
         (!ql || r.name.toLowerCase().includes(ql)),
@@ -200,7 +223,7 @@ function Rates({ data }: { data: ExploreData }) {
               </div>
               <div className="opacity-80">{label}</div>
               <div className="opacity-60">
-                2-night stay from this date{r.platform === "booking" ? ", incl. taxes and fees" : ", before taxes"}
+                {r.platform === "web" ? "1 night on this date, incl. taxes" : `2-night stay from this date${r.platform === "booking" ? ", incl. taxes and fees" : ", before taxes"}`}
               </div>
             </div>
           ))}
@@ -236,7 +259,7 @@ function Rates({ data }: { data: ExploreData }) {
         <h1 className="text-2xl font-semibold tracking-tight">Nightly rates</h1>
         <p className="mt-1 text-sm text-muted">
           What every place charges a night, date by date, grouped by bedrooms. Prices are for a 2-night stay starting that
-          date. Airbnb is before taxes; Booking.com includes taxes and fees. A$1 = Rp{" "}
+          date (1 night for websites). Airbnb is before taxes; Booking.com and websites include taxes. A$1 = Rp{" "}
           {Math.round(data.audRate).toLocaleString("en-AU")} ({data.rateDate}).
         </p>
       </div>
@@ -264,7 +287,8 @@ function Rates({ data }: { data: ExploreData }) {
             [
               ["airbnb", "Airbnb"],
               ["booking", "Booking.com"],
-              ["both", "Both"],
+              ["web", "Websites"],
+              ["all", "All"],
             ] as const
           ).map(([k, l]) => (
             <Chip key={k} on={platform === k} onClick={() => setPlatform(k)}>
@@ -373,7 +397,7 @@ function Rates({ data }: { data: ExploreData }) {
                             )}
                           </div>
                           <div className="truncate text-[11px] text-muted">
-                            {r.area} · {r.platform === "airbnb" ? "Airbnb" : "Booking.com"}
+                            {r.area} · {r.platform === "airbnb" ? "Airbnb" : r.platform === "booking" ? "Booking.com" : "Own website"}
                             {r.rating ? ` · ★ ${r.rating}` : ""}
                           </div>
                         </td>

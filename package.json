@@ -18,7 +18,8 @@
     "finish": "tsx src/jobs/finish.ts",
     "price-villa": "tsx src/jobs/price-villa.ts",
     "test": "tsx --test src/pricing/engine.test.ts src/lib/ical.test.ts",
-    "calendar-sync": "tsx src/jobs/calendar-sync.ts"
+    "calendar-sync": "tsx src/jobs/calendar-sync.ts",
+    "websites": "tsx src/jobs/websites.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

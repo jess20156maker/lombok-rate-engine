@@ -12,7 +12,7 @@ import { watchedIds } from "./watch";
 import type { BookingListing, ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
-const PAYLOAD_VERSION = 3;
+const PAYLOAD_VERSION = 4;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
@@ -30,8 +30,9 @@ export async function loadExplore(): Promise<ExploreData | null> {
   const base = await cached(`explore:v${PAYLOAD_VERSION}:${snapshot}`, HOUR, () => buildExplore(snapshot));
   // Booking.com and the cross-platform links land in stages overnight, and the
   // watchlist changes whenever you star a villa, so these stay fresher.
-  const [booking, watched] = await Promise.all([
+  const [booking, web, watched] = await Promise.all([
     cached(`booking:v${PAYLOAD_VERSION}:${snapshot}`, 10 * MINUTE, () => loadBooking(base.from, base.days)),
+    cached(`web:v${PAYLOAD_VERSION}:${snapshot}`, 10 * MINUTE, () => loadWeb(base.from, base.days)),
     watchedIds(),
   ]);
   const slugByAirbnb = new Map(
@@ -41,11 +42,12 @@ export async function loadExplore(): Promise<ExploreData | null> {
     ...base,
     listings: base.listings.map((l) => ({ ...l, bookingSlug: slugByAirbnb.get(l.id) ?? null })),
     booking,
+    web,
     watched: [...watched],
   };
 }
 
-async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched" | "booking">> {
+async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched" | "booking" | "web">> {
 
   const [ls, cals, prices, changes] = await Promise.all([
     pool.query("select id, name, kind, area, bedrooms, rating from listings where platform = 'airbnb' and active"),
@@ -165,4 +167,33 @@ async function loadBooking(from: string, days: number): Promise<ExploreData["boo
     (prices[di] ??= []).push([li, p.per_night]);
   }
   return { snapshot, listings, prices };
+}
+
+/** Competitor websites: latest calendar and nightly rates for each tracked room. */
+async function loadWeb(from: string, days: number): Promise<ExploreData["web"]> {
+  const { rows: latest } = await pool.query("select max(snapshot_date)::text d from calendar_snapshots where platform = 'web'");
+  const snap: string | null = latest[0]?.d ?? null;
+  if (!snap) return { listings: [], prices: {} };
+  const [ls, cals, ps] = await Promise.all([
+    pool.query("select id, name, area, bedrooms, slug from listings where platform = 'web' and active order by name"),
+    pool.query("select listing_id, from_date::text, nights from calendar_snapshots where platform = 'web' and snapshot_date = $1", [snap]),
+    pool.query("select listing_id, checkin::text, (total / nights)::int per_night from price_samples where platform = 'web' and snapshot_date = $1", [snap]),
+  ]);
+  const calBy = new Map(cals.rows.map((r) => [r.listing_id as string, r]));
+  const listings = ls.rows.map((l) => {
+    const c = calBy.get(l.id);
+    // Align the site's calendar to the dashboard's day 0.
+    const off = c ? dayIndex(c.from_date, from) : 0;
+    const nights = c ? (off >= 0 ? c.nights.slice(off) : "?".repeat(-off) + c.nights).slice(0, days) : "";
+    return { id: l.id as string, name: l.name as string, area: l.area as string, beds: bedroomGroup(l.bedrooms), url: l.slug as string, nights };
+  });
+  const index = new Map(listings.map((l, i) => [l.id, i]));
+  const prices: ExploreData["web"]["prices"] = {};
+  for (const p of ps.rows) {
+    const li = index.get(p.listing_id);
+    const di = dayIndex(from, p.checkin);
+    if (li == null || di < 0 || di >= days) continue;
+    (prices[di] ??= []).push([li, p.per_night]);
+  }
+  return { listings, prices };
 }

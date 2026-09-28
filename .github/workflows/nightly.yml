@@ -41,6 +41,9 @@ jobs:
       - run: npm run hydrate
       # Prices are handled by the parallel jobs below.
       - run: npm run daily -- --skip-prices
+      # Competitor websites (src/web/sites.ts): a few page loads.
+      - run: npm run websites
+        continue-on-error: true
 
   prices:
     runs-on: ubuntu-latest

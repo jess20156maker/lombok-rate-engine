@@ -58,6 +58,12 @@ export type ExploreData = {
     /** Sampled check-in dayIndex -> [bookingListingIndex, perNight incl. taxes][] (places open that night). */
     prices: Record<number, [number, number][]>;
   };
+  /** Competitor websites: a rate and availability for every night. */
+  web: {
+    listings: { id: string; name: string; area: string; beds: string; url: string; nights: string }[];
+    /** dayIndex -> [webListingIndex, perNight incl. taxes][] (open nights only). */
+    prices: Record<number, [number, number][]>;
+  };
   watched: string[]; // listing ids on the watchlist
   audRate: number; // IDR per AUD
   rateDate: string;
