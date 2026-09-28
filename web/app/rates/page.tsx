@@ -2,9 +2,10 @@ import { connection } from "next/server";
 import { RatesTable } from "@/components/rates-table";
 import { loadExplore } from "@/lib/explore";
 
-export default async function RatesPage() {
+export default async function RatesPage(props: PageProps<"/rates">) {
   await connection();
-  const data = await loadExplore();
+  const [data, sp] = await Promise.all([loadExplore(), props.searchParams]);
   if (!data) return <p className="text-muted">No data collected yet.</p>;
-  return <RatesTable data={data} />;
+  const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : "";
+  return <RatesTable data={data} initialQuery={q} />;
 }

@@ -127,6 +127,9 @@ function parse(r: any): BookingResult | null {
   };
 }
 
+/** Booking.com's bot check interrupted the session; a fresh session usually passes it again. */
+export class BookingBlockedError extends Error {}
+
 /** Every entire-place result for one stay, paging 100 at a time. */
 export async function searchStay(s: BookingSession, checkin: string, checkout: string): Promise<BookingResult[]> {
   const out: BookingResult[] = [];
@@ -139,10 +142,14 @@ export async function searchStay(s: BookingSession, checkin: string, checkout: s
         const headers = { ...t.headers };
         delete headers["content-length"];
         const res = await fetch(t.url, { method: "POST", headers, body: JSON.stringify(body), credentials: "include" });
-        const j = await res.json();
+        const text = await res.text();
+        // The bot check answers with an HTML page instead of JSON.
+        if (!text.trimStart().startsWith("{")) return { status: res.status, blocked: true, error: null, total: 0, results: [] };
+        const j = JSON.parse(text);
         const search = j?.data?.searchQueries?.search;
         return {
           status: res.status,
+          blocked: false,
           error: j?.errors?.[0]?.message ?? null,
           total: search?.pagination?.nbResultsTotal ?? 0,
           results: search?.results ?? [],
@@ -150,6 +157,7 @@ export async function searchStay(s: BookingSession, checkin: string, checkout: s
       },
       { t: s.template, checkin, checkout, offset },
     );
+    if (page.blocked) throw new BookingBlockedError(`Booking.com bot check (HTTP ${page.status})`);
     if (page.status !== 200 || page.error) throw new Error(`Booking FullSearch ${page.status}: ${page.error ?? "no data"}`);
     out.push(...(page.results.map(parse).filter(Boolean) as BookingResult[]));
     if (offset + 100 >= page.total || page.results.length === 0) break;

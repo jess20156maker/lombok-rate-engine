@@ -40,7 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
             </nav>
-            <form action="/listings" className="ml-auto w-full sm:w-64">
+            <form action="/rates" className="ml-auto w-full sm:w-64">
               <input
                 name="q"
                 type="search"

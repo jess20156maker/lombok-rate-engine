@@ -99,7 +99,7 @@ function occupancy(comps: CompInput[], day: number, which: "nights" | "prevNight
   let known = 0;
   for (const c of comps) {
     const ch = c[which]?.[day];
-    if (ch === undefined) continue;
+    if (ch === undefined || ch === "?") continue; // not known for this night
     known++;
     if (ch === "0") blocked++;
   }

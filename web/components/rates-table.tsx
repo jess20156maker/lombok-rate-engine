@@ -58,23 +58,24 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-export function RatesTable({ data }: { data: ExploreData }) {
+export function RatesTable({ data, initialQuery = "" }: { data: ExploreData; initialQuery?: string }) {
   return (
     <TooltipProvider>
-      <Rates data={data} />
+      <Rates data={data} initialQuery={initialQuery} />
     </TooltipProvider>
   );
 }
 
-function Rates({ data }: { data: ExploreData }) {
+function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string }) {
   const t = useTooltip();
   const [areas, setAreas] = useState<string[]>([]);
   const [beds, setBeds] = useState<string[]>([]);
-  const [platform, setPlatform] = useState<Platform>("airbnb");
+  // A search from the header looks across every site.
+  const [platform, setPlatform] = useState<Platform>(initialQuery ? "all" : "airbnb");
   const [days, setDays] = useState(30);
   const [pricedOnly, setPricedOnly] = useState(true);
   const [sort, setSort] = useState<Sort>("reviews");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const aud = (n: number | null) => fmt(n, { currency: "AUD", audRate: data.audRate, rateDate: data.rateDate });

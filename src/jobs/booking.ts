@@ -12,7 +12,7 @@
 
 import "dotenv/config";
 import { MARKET, PRICE_SAMPLE } from "../config.js";
-import { closeSession, openSession, searchStay, type BookingResult } from "../booking/client.js";
+import { BookingBlockedError, closeSession, openSession, searchStay, type BookingResult } from "../booking/client.js";
 import { addDays, today } from "../lib/dates.js";
 import { db, upsert } from "../lib/db.js";
 import { nearestArea } from "../lib/geo.js";
@@ -54,12 +54,44 @@ if (todo.length === 0) {
 const nights = PRICE_SAMPLE.nights;
 // Open on a date six weeks out: plenty of results there makes the page load a
 // second batch reliably. Each search then sets its own dates.
-const session = await openSession(addDays(date, 42), addDays(date, 42 + nights), 5);
+const open = () => openSession(addDays(date, 42), addDays(date, 42 + nights), 5);
+let session = await open();
 const seen = new Map<string, BookingResult>();
+let blocks = 0;
 
+/** Search one stay, starting a fresh session (and slowing down) if the bot check steps in. */
+async function searchWithRecovery(checkin: string) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await searchStay(session, checkin, addDays(checkin, nights));
+    } catch (err) {
+      if (!(err instanceof BookingBlockedError) || attempt >= 3) throw err;
+      blocks++;
+      console.warn(`  ${checkin}: ${err.message}; starting a fresh session (attempt ${attempt + 1})`);
+      await closeSession(session).catch(() => {});
+      await new Promise((r) => setTimeout(r, 30_000 * attempt + Math.random() * 30_000));
+      session = await open();
+    }
+  }
+}
+
+let failedDates = 0;
 try {
   for (const checkin of todo) {
-    const results = (await searchStay(session, checkin, addDays(checkin, nights))).filter(inMarket);
+    let found: BookingResult[];
+    try {
+      found = await searchWithRecovery(checkin);
+    } catch (err) {
+      // Keep going: a missed date is better than a missed night.
+      failedDates++;
+      console.warn(`  ${checkin}: skipped (${(err as Error).message})`);
+      if (failedDates >= 8) {
+        console.warn("  Too many dates failed; stopping this share for tonight (what was collected is saved).");
+        break;
+      }
+      continue;
+    }
+    const results = found.filter(inMarket);
     for (const r of results) seen.set(r.id, r);
 
     const prices = new Map(results.filter((r) => r.total != null && !r.soldOut).map((r) => [r.id, r]));
@@ -81,10 +113,13 @@ try {
     await saveListings([...prices.values()]);
     await upsert("price_sample_dates", ["snapshot_date", "platform", "checkin"], [{ snapshot_date: date, platform: "booking", checkin }]);
     console.log(`  Booking.com ${checkin}: ${prices.size} places open`);
+    // A person doesn't search 60 dates a minute.
+    await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2500));
   }
 } finally {
-  await closeSession(session);
+  await closeSession(session).catch(() => {});
 }
+console.log(`Booking.com shard ${shardNo}/${shardCount}: bot check met ${blocks} time(s), ${failedDates} date(s) skipped`);
 
 async function saveListings(results: BookingResult[]) {
   await upsert(
