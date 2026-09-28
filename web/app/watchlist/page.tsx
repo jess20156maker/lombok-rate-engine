@@ -97,7 +97,13 @@ export default async function WatchlistPage() {
                           className={`w-24 shrink-0 rounded-md border px-2 py-2 text-center ${
                             p.available ? "border-line" : "border-transparent bg-[var(--seq-5)] text-white"
                           }`}
-                          title={p.available ? `${p.nights}-night stay from ${p.checkin}` : "Booked or closed"}
+                          title={
+                            p.available
+                              ? `${p.nights}-night stay from ${p.checkin}`
+                              : p.wasPerNight != null
+                                ? `Booked. Last seen open at ${aud(p.wasPerNight)} · ${idr(p.wasPerNight)} a night, on ${dayLabel(p.wasSeen!)}`
+                                : "Booked or closed (no earlier price seen)"
+                          }
                         >
                           <div className={`text-[11px] ${p.available ? "text-muted" : "opacity-80"}`}>{dayLabel(p.checkin)}</div>
                           {p.available && p.perNight != null ? (
@@ -111,7 +117,10 @@ export default async function WatchlistPage() {
                               )}
                             </>
                           ) : (
-                            <div className="mt-1 text-xs font-medium">Booked</div>
+                            <>
+                              <div className="mt-1 text-xs font-medium">Booked</div>
+                              {p.wasPerNight != null && <div className="tabular text-[10px] opacity-85">was {aud(p.wasPerNight)}</div>}
+                            </>
                           )}
                         </div>
                       );

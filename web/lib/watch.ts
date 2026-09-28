@@ -2,7 +2,16 @@ import "server-only";
 import { pool } from "./data";
 import { audRate } from "./fx";
 
-export type WatchPrice = { checkin: string; nights: number; available: boolean; perNight: number | null; firstPerNight: number | null };
+export type WatchPrice = {
+  checkin: string;
+  nights: number;
+  available: boolean;
+  perNight: number | null;
+  firstPerNight: number | null;
+  /** For booked nights: the last price seen while it was still open, and when. */
+  wasPerNight: number | null;
+  wasSeen: string | null;
+};
 export type WatchPoint = { date: string; value: number | null };
 
 export type WatchedVilla = {
@@ -140,8 +149,12 @@ export async function loadWatchlist(): Promise<{ villas: WatchedVilla[]; audRate
       if (!cur || (cur.perNight == null && r.perNight != null)) latestBy.set(r.checkin, r);
     }
     const firstBy = new Map<string, number>();
-    for (const r of [...rs].sort((a, b) => a.snapshot.localeCompare(b.snapshot)))
-      if (r.perNight != null && !firstBy.has(r.checkin)) firstBy.set(r.checkin, r.perNight);
+    const lastOpenBy = new Map<string, { perNight: number; seen: string }>();
+    for (const r of [...rs].sort((a, b) => a.snapshot.localeCompare(b.snapshot))) {
+      if (r.perNight == null) continue;
+      if (!firstBy.has(r.checkin)) firstBy.set(r.checkin, r.perNight);
+      lastOpenBy.set(r.checkin, { perNight: r.perNight, seen: r.snapshot });
+    }
 
     const horizonEnd = lastSnap ? new Date(Date.parse(lastSnap) + 91 * DAY).toISOString().slice(0, 10) : "";
     // Booking.com is priced for every date, so show every third night to keep the row readable.
@@ -156,6 +169,8 @@ export async function loadWatchlist(): Promise<{ villas: WatchedVilla[]; audRate
         available: r.available,
         perNight: r.perNight,
         firstPerNight: firstBy.get(r.checkin) ?? null,
+        wasPerNight: r.available ? null : (lastOpenBy.get(r.checkin)?.perNight ?? null),
+        wasSeen: r.available ? null : (lastOpenBy.get(r.checkin)?.seen ?? null),
       }));
 
     const priceHistory = snapshots.map((s) => {
