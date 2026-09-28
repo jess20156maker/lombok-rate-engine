@@ -10,7 +10,7 @@ import { dateLabel, pct } from "@/lib/format";
 
 const COLORS: Record<string, string> = { "1": "var(--open)", c: "var(--nocheckin)", "0": "var(--blocked)" };
 
-type Night = { date: string; c: string; price: number | null; was: [number, string] | null };
+type Night = { date: string; c: string; price: number | null; was: [number, string] | null; estimate: number | null };
 
 /** 12 months, Monday-first, with the nightly rate in every square. */
 function RateCalendar({ nights, aud, idr }: { nights: Night[]; aud: (n: number) => string; idr: (n: number) => string }) {
@@ -42,7 +42,9 @@ function RateCalendar({ nights, aud, idr }: { nights: Night[]; aud: (n: number) 
               const title = booked
                 ? d.was
                   ? `${d.date}: booked. Last seen open at ${aud(d.was[0])} · ${idr(d.was[0])} a night, on ${seen}`
-                  : `${d.date}: booked or closed (no earlier price seen)`
+                  : d.estimate != null
+                    ? `${d.date}: booked before we saw its price. Estimated ~${aud(d.estimate)} · ${idr(d.estimate)} a night, from this villa's prices on nearby open nights`
+                    : `${d.date}: booked or closed (no price seen nearby)`
                 : d.price != null
                   ? `${d.date}: ${aud(d.price)} · ${idr(d.price)} a night (2-night stay)${d.c === "c" ? ", no check-in that day" : ""}`
                   : `${d.date}: open, price not checked for this date`;
@@ -55,7 +57,7 @@ function RateCalendar({ nights, aud, idr }: { nights: Night[]; aud: (n: number) 
                 >
                   <span className="text-[9px] opacity-70">{Number(d.date.slice(8))}</span>
                   <span className="tabular text-[10px] font-semibold">
-                    {booked ? (d.was ? short(d.was[0]) : "") : d.price != null ? short(d.price) : "–"}
+                    {booked ? (d.was ? short(d.was[0]) : d.estimate != null ? `~${short(d.estimate)}` : "") : d.price != null ? short(d.price) : "–"}
                   </span>
                 </div>
               );
@@ -85,12 +87,26 @@ export default async function ListingPage(props: PageProps<"/listings/[id]">) {
     const was = new Map<number, [number, string]>();
     for (const [d, arr] of Object.entries(explore.wasPrices)) for (const [i, p, seen] of arr) if (i === li) was.set(Number(d), [p, seen]);
     const ln = explore.listings[li].nights;
+    // For booked nights with no price seen: this villa's median price on open
+    // nights within a week either side (widening to a month), marked as an estimate.
+    const near = (d: number) => {
+      for (const span of [7, 14, 30]) {
+        const xs: number[] = [];
+        for (let k = d - span; k <= d + span; k++) {
+          const p = price.get(k) ?? was.get(k)?.[0];
+          if (p != null) xs.push(p);
+        }
+        if (xs.length >= 2) return xs.sort((a, b) => a - b)[xs.length >> 1];
+      }
+      return null;
+    };
     for (let d = 0; d < ln.length; d++) {
       nights.push({
         date: new Date(Date.parse(explore.from) + d * 86_400_000).toISOString().slice(0, 10),
         c: ln[d],
         price: price.get(d) ?? null,
         was: was.get(d) ?? null,
+        estimate: ln[d] === "0" && !was.has(d) ? near(d) : null,
       });
     }
   }
@@ -138,7 +154,7 @@ export default async function ListingPage(props: PageProps<"/listings/[id]">) {
               {[
                 ["1", "Open: that night's rate (A$, for a 2-night stay, before taxes)"],
                 ["c", "Open, but no check-in that day"],
-                ["0", "Booked: the rate it had before it sold, when we saw one"],
+                ["0", "Booked: the rate before it sold, or ~ an estimate from nearby nights"],
               ].map(([c, label]) => (
                 <span key={c} className="flex items-center gap-1.5">
                   <span className="inline-block size-3 rounded-[2px]" style={{ background: COLORS[c] }} />

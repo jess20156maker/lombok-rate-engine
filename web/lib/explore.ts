@@ -12,7 +12,7 @@ import { watchedKeys } from "./watch";
 import type { BookingListing, ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
-const PAYLOAD_VERSION = 6;
+const PAYLOAD_VERSION = 7;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
@@ -170,8 +170,14 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
 
 /** Booking.com: places seen in the last 30 days, and the latest night's sampled prices. */
 async function loadBooking(from: string, days: number): Promise<ExploreData["booking"]> {
-  const { rows: latest } = await pool.query("select max(snapshot_date) d from price_sample_dates where platform = 'booking'");
-  const snapshot: string | null = latest[0]?.d ?? null;
+  // The latest collection day that finished (or nearly): a night cut short by
+  // Booking.com's bot check would otherwise make most places look booked.
+  const { rows: recent } = await pool.query(
+    `select snapshot_date::text d, count(*) n from price_sample_dates where platform = 'booking'
+      group by 1 order by 1 desc limit 7`,
+  );
+  const most = Math.max(0, ...recent.map((r) => Number(r.n)));
+  const snapshot: string | null = recent.find((r) => Number(r.n) >= most * 0.8)?.d ?? null;
   if (!snapshot) return { snapshot: null, listings: [], prices: {}, wasPrices: {}, checked: [], ratio: 0.87 };
 
   const [ls, ps, links] = await Promise.all([

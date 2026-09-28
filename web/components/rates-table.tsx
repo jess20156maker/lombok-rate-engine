@@ -252,6 +252,21 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
       );
     if (s === true) {
       const was = r.was.get(i);
+      // No price seen before it sold: estimate from this place's nearby open nights.
+      let estimate: number | null = null;
+      if (!was) {
+        for (const span of [7, 14, 30]) {
+          const xs: number[] = [];
+          for (let k = i - span; k <= i + span; k++) {
+            const p = r.prices.get(k) ?? r.was.get(k)?.[0];
+            if (p != null) xs.push(p);
+          }
+          if (xs.length >= 2) {
+            estimate = xs.sort((a, b) => a - b)[xs.length >> 1];
+            break;
+          }
+        }
+      }
       const seen = was ? new Date(was[1] + "T00:00:00Z").toLocaleString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : null;
       return (
         <td
@@ -266,14 +281,26 @@ function Rates({ data, initialQuery }: { data: ExploreData; initialQuery: string
                 </div>
                 <div className="opacity-60">{label}</div>
               </div>
+            ) : estimate != null ? (
+              <div>
+                <div className="font-semibold">Booked</div>
+                <div className="opacity-80">
+                  Estimated ~{aud(estimate)} · {idr(estimate)} a night, from this place&apos;s prices on nearby open nights
+                </div>
+                <div className="opacity-60">{label}</div>
+              </div>
             ) : (
-              `${label}: booked or unavailable (no earlier price seen)`
+              `${label}: booked or unavailable (no price seen nearby)`
             ),
           )}
         >
           <div className="rounded-sm px-1 py-1 text-center leading-tight text-white" style={{ background: "var(--seq-5)" }}>
             <div className="text-[10px]">booked</div>
-            {was && <div className="text-[9px] opacity-85">was {aud(was[0])}</div>}
+            {was ? (
+              <div className="text-[9px] opacity-85">was {aud(was[0])}</div>
+            ) : (
+              estimate != null && <div className="text-[9px] opacity-85">~{aud(estimate)}</div>
+            )}
           </div>
         </td>
       );
