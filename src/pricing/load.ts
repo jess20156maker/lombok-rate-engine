@@ -19,7 +19,19 @@ export type Property = {
   base_min_stay: number;
   lat?: number | null;
   lng?: number | null;
+  settings?: { reviews?: number } | null;
 };
+
+/**
+ * Many hosts only open their calendar 6–12 months ahead; the closed nights
+ * after that aren't bookings. A closed run reaching the end of the calendar
+ * becomes "unknown" ('?'), so it doesn't count as demand.
+ */
+export function unopenedAsUnknown(nights: string, minRun = 7): string {
+  let end = nights.length;
+  while (end > 0 && (nights[end - 1] === "0" || nights[end - 1] === "?")) end--;
+  return nights.length - end >= minRun ? nights.slice(0, end) + "?".repeat(nights.length - end) : nights;
+}
 
 /** Straight-line distance in km. */
 function km(aLat: number, aLng: number, bLat: number, bLng: number) {
@@ -57,7 +69,7 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
   const { rows: links } = await q("select airbnb_id, booking_id from listing_links");
   const linkedBooking = new Set(links.map((r) => r.booking_id as string));
   const keyOf = (platform: string, id: string) => `${platform}:${id}`;
-  const listings = all
+  const listings: { key: string; platform: "airbnb" | "booking" | "web"; id: string; bedrooms: number | null; dist: number }[] = all
     .filter((l) => l.reviewed || l.priced)
     .filter((l) => !(l.platform === "booking" && linkedBooking.has(l.id)))
     .map((l) => ({
@@ -67,6 +79,15 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
       bedrooms: l.bedrooms as number | null,
       dist: km(here.lat, here.lng, l.lat, l.lng),
     }));
+  // Places closed all year (95%+ of the next 365 nights) aren't really competing.
+  const { rows: dormantRows } = await q(
+    `select platform, listing_id from calendar_snapshots
+      where ((platform = 'airbnb' and snapshot_date = $1) or (platform = 'web' and snapshot_date = (select max(snapshot_date) from calendar_snapshots where platform = 'web')))
+        and length(nights) - length(replace(nights, '0', '')) >= 0.95 * length(nights)`,
+    [latest],
+  );
+  const dormant = new Set(dormantRows.map((r) => keyOf(r.platform, r.listing_id)));
+  for (let i = listings.length - 1; i >= 0; i--) if (dormant.has(listings[i].key)) listings.splice(i, 1);
   const byKey = new Map(listings.map((l) => [l.key, l]));
 
   // Comparable set: same bedrooms nearest first, widening the radius, then
@@ -175,7 +196,7 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
   const align = (row: { from_date: unknown; nights: string } | undefined) => {
     if (!row) return "";
     const off = dayIndex(asDate(row.from_date), start);
-    return off >= 0 ? row.nights.slice(off) : "?".repeat(-off) + row.nights;
+    return unopenedAsUnknown(off >= 0 ? row.nights.slice(off) : "?".repeat(-off) + row.nights);
   };
   const calBy = new Map(cals.rows.map((r) => [keyOf("airbnb", r.listing_id), r]));
   const prevBy = new Map(prevCals.rows.map((r) => [keyOf("airbnb", r.listing_id), r]));
@@ -257,6 +278,7 @@ export async function loadEngineInput(q: Query, p: Property, start: string, even
     start,
     days,
     position: p.position,
+    reviews: p.settings?.reviews ?? null,
     minRate: Number(p.min_rate),
     maxRate: Number(p.max_rate),
     baseMinStay: p.base_min_stay,

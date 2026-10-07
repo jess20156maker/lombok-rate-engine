@@ -32,6 +32,7 @@ export type PropertyRow = {
   airbnb_ical_url: string | null;
   booking_ical_url: string | null;
   draft: boolean;
+  settings: { reviews?: number; notes?: string } | null;
 };
 
 export type Recommendation = {
@@ -61,7 +62,7 @@ export type Override = { date: string; price: number | null; minStay: number | n
 export async function loadProperty(id?: string): Promise<PropertyRow | null> {
   const { rows } = await pool.query(
     `select id, name, area, bedrooms, lat, lng, position, min_rate::float8 min_rate, max_rate::float8 max_rate, base_min_stay,
-            ical_token, airbnb_ical_url, booking_ical_url, draft
+            ical_token, airbnb_ical_url, booking_ical_url, draft, settings
        from properties ${id ? "where id = $1" : ""} order by created_at limit 1`,
     id ? [id] : [],
   );

@@ -55,12 +55,15 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
 
 ## Villa: pricing engine, central calendar, assistant
 
-- `properties` holds the villa (draft Mulai Villa: 3 bed, Selong Belanak, position 0.65, min Rp 2.5m, max Rp 15m,
-  `draft = true` until the owner confirms on /pricing).
+- `properties` holds the villa (draft Mulai Villa: 4 bed, double-storey, Twin Peaks / Serangan beach (map point = Serangan
+  area centre until an exact pin), position 0.65, min Rp 2.5m, max Rp 15m, `settings.reviews` = 0 so it's held at the
+  comparable median until 5 reviews; `draft = true` until the owner confirms on /pricing).
 - Engine: `src/pricing/engine.ts` (pure, tested in `engine.test.ts`), inputs from `src/pricing/load.ts`
-  (comparable villas = reviewed Airbnb listings, same beach + bedrooms, widening if < 8), saved by
+  (comparable villas = live places on all sites by distance + bedrooms, closed-all-year ones excluded; trailing closed
+  calendar nights count as unknown, not booked), saved by
   `src/pricing/run.ts` into `price_recommendations` (+ `price_history`). Runs nightly in `npm run finish` and on
-  every change from the website. Overrides in `rate_overrides` win; min/max clamp otherwise.
+  every change from the website. The nightly run moves each night at most 10% a day beyond 14 days out (`MAX_DAILY_MOVE`);
+  website changes apply in full. Overrides in `rate_overrides` win; min/max clamp otherwise.
 - Calendar: `reservations` (sources airbnb/booking/direct/manual/block). `src/lib/calendar-sync.ts` imports each
   channel's iCal export (every 20 min: `.github/workflows/calendar-sync.yml`), cancels vanished events, flags
   overlaps. Feeds for the channels: `/api/ical/<ical_token>/{airbnb,booking,all}.ics` (exempt from the password;
@@ -73,6 +76,14 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
   (`src/lib/sql.ts`, `ical.ts`, `calendar-sync.ts`, `env.ts`, `src/pricing/*`), taking a `Query` function.
 - Database connections use Supabase's transaction pooler (port 6543, rewritten in `src/lib/env.ts`); the session
   pooler's 15-client cap broke the parallel nightly jobs.
+
+## Monitoring
+- `.github/workflows/health.yml` (03:00 + 09:00 UTC): `npm run health` (checks in `src/lib/health.ts`, tested in
+  `health.test.ts`), re-runs the nightly job if collection is missing, opens/closes a `health`-labelled GitHub issue
+  (emails the owner), and re-enables the schedules. Results in `health_checks`; `/collection` shows them; the header shows
+  a red badge on failure or if checks stop. `/api/health` is public (pass/fail only).
+- `.github/workflows/test.yml`: tests + type-checks on every push.
+- `listing_reviews`: daily rating + review count per place (from `npm run finish`; Airbnb ratings refreshed by `prices`).
 
 ## Next
 1. Owner: confirm villa details on /pricing; paste Airbnb/Booking.com export links on /calendar and our feed links

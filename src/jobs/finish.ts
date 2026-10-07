@@ -23,6 +23,17 @@ const date = today();
 await db.query("update listings set active = false where platform = 'booking' and last_seen < ($1::date - 30)", [date]);
 await linkPlatforms();
 
+// Review history: today's rating and review count for every active place.
+await db.query(
+  `insert into listing_reviews (snapshot_date, platform, listing_id, rating, reviews)
+   select $1::date, platform, id,
+          replace(substring(rating from '^([0-9]+[.,]?[0-9]*)'), ',', '.')::real,
+          replace(substring(rating from '\\(([0-9,]+)\\)'), ',', '')::int
+     from listings where active and rating ~ '\\([0-9]'
+   on conflict (snapshot_date, platform, listing_id) do update set rating = excluded.rating, reviews = excluded.reviews`,
+  [date],
+);
+
 // Tonight's market data is in: re-price the villa(s).
 const { priceAllProperties } = await import("./price-villa.js");
 await priceAllProperties();

@@ -253,3 +253,16 @@ create table if not exists health_checks (
   healed     text
 );
 alter table health_checks enable row level security;
+
+-- Each villa's rating and review count, once a day. New reviews arrive after
+-- stays, so a rising count is the best public sign of real bookings.
+create table if not exists listing_reviews (
+  snapshot_date date not null,
+  platform      text not null,
+  listing_id    text not null,
+  rating        real,          -- Airbnb out of 5, Booking.com out of 10
+  reviews       int not null,
+  primary key (snapshot_date, platform, listing_id)
+);
+create index if not exists listing_reviews_listing on listing_reviews (platform, listing_id, snapshot_date);
+alter table listing_reviews enable row level security;

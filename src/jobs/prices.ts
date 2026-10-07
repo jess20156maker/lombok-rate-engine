@@ -38,6 +38,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`Shard ${shardNo}/${shardCount}: ${mine.length} dates to price across ${tiles.length} tiles`);
 
   const nights = PRICE_SAMPLE.nights;
+  const ratings = new Map<string, string>(); // "4.93 (76)": saved daily as review history (npm run finish)
   for (const checkin of mine) {
     const checkout = addDays(checkin, nights);
     const found = new Map<string, { total: number; nightly: number | null }>();
@@ -45,7 +46,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const tile of tiles as BBox[]) {
       try {
         const { listings } = await searchAll(tile, { checkin, checkout });
-        for (const l of listings) if (knownIds.has(l.id) && l.total != null) found.set(l.id, { total: l.total, nightly: l.nightly });
+        for (const l of listings) {
+          if (knownIds.has(l.id) && l.total != null) found.set(l.id, { total: l.total, nightly: l.nightly });
+          if (knownIds.has(l.id) && l.rating) ratings.set(l.id, l.rating);
+        }
       } catch (err) {
         complete = false;
         console.warn(`  ${checkin}: a tile failed: ${(err as Error).message}`);
@@ -68,5 +72,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (complete) await upsert("price_sample_dates", ["snapshot_date", "platform", "checkin"], [{ snapshot_date: date, platform: "airbnb", checkin }]);
     console.log(`  ${checkin}: ${found.size} places priced${complete ? "" : " (incomplete)"}`);
   }
+  // Keep each villa's rating and review count current (the weekly sweep used to be the only update).
+  if (ratings.size)
+    await db.query(
+      `update listings l set rating = v.rating from unnest($1::text[], $2::text[]) v(id, rating)
+        where l.platform = 'airbnb' and l.id = v.id and l.rating is distinct from v.rating`,
+      [[...ratings.keys()], [...ratings.values()]],
+    );
   await db.end();
 }

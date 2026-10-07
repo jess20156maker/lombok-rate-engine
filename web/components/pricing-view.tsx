@@ -303,6 +303,7 @@ function Settings({ villa, money }: { villa: Villa; money: { aud: (n: number | n
     minAud: String(Math.round(p.min_rate / rate)),
     maxAud: String(Math.round(p.max_rate / rate)),
     baseMinStay: String(p.base_min_stay),
+    reviews: String(p.settings?.reviews ?? 0),
     confirmed: !p.draft,
   });
   const [pending, start] = useTransition();
@@ -327,6 +328,7 @@ function Settings({ villa, money }: { villa: Villa; money: { aud: (n: number | n
                 minRate: Number(s.minAud) * rate,
                 maxRate: Number(s.maxAud) * rate,
                 baseMinStay: Number(s.baseMinStay),
+                reviews: Number(s.reviews),
                 confirmed: s.confirmed,
               });
               setMsg("Saved. Every night has been re-priced.");
@@ -355,6 +357,11 @@ function Settings({ villa, money }: { villa: Villa; money: { aud: (n: number | n
         <label className="grid gap-1 text-xs text-muted">
           Usual minimum stay (nights)
           <input value={s.baseMinStay} onChange={(e) => setS({ ...s, baseMinStay: e.target.value })} inputMode="numeric" className="rounded border border-line bg-bg px-2 py-1.5 text-sm text-ink" />
+        </label>
+        <label className="grid gap-1 text-xs text-muted">
+          Reviews so far (Airbnb)
+          <input value={s.reviews} onChange={(e) => setS({ ...s, reviews: e.target.value })} inputMode="numeric" className="rounded border border-line bg-bg px-2 py-1.5 text-sm text-ink" />
+          <span className="text-[10px]">Under 5: priced at the market middle until guests vouch for it</span>
         </label>
         <label className="grid gap-1 text-xs text-muted md:col-span-2">
           Position vs similar villas: <strong className="text-ink">{positionLabel}</strong> ({Math.round(s.position * 100)}th percentile)

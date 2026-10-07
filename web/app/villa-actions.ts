@@ -29,6 +29,7 @@ export type SettingsInput = {
   minRate: number;
   maxRate: number;
   baseMinStay: number;
+  reviews: number;
   confirmed: boolean;
 };
 
@@ -40,10 +41,11 @@ export async function saveSettings(id: string, s: SettingsInput) {
   check(s.position >= 0.05 && s.position <= 0.95, "Position out of range");
   check(s.minRate > 0 && s.maxRate > s.minRate, "Maximum must be above minimum");
   check(Number.isInteger(s.baseMinStay) && s.baseMinStay >= 1 && s.baseMinStay <= 14, "Minimum stay must be 1–14");
+  check(Number.isInteger(s.reviews) && s.reviews >= 0 && s.reviews <= 100_000, "Reviews must be a whole number");
   await pool.query(
     `update properties set name = $2, area = $3, bedrooms = $4, position = $5, min_rate = $6, max_rate = $7,
-            base_min_stay = $8, draft = $9, updated_at = now() where id = $1`,
-    [id, s.name.trim(), s.area, s.bedrooms, s.position, Math.round(s.minRate), Math.round(s.maxRate), s.baseMinStay, !s.confirmed],
+            base_min_stay = $8, draft = $9, settings = settings || jsonb_build_object('reviews', $10::int), updated_at = now() where id = $1`,
+    [id, s.name.trim(), s.area, s.bedrooms, s.position, Math.round(s.minRate), Math.round(s.maxRate), s.baseMinStay, !s.confirmed, s.reviews],
   );
   await repriceProperty(id);
   refresh();

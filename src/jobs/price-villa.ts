@@ -18,7 +18,7 @@ export async function priceAllProperties() {
   const events = JSON.parse(readFileSync(new URL("../../db/events.json", import.meta.url), "utf8")) as EventInput[];
   const { rows: props } = await db.query<Property>("select * from properties");
   for (const p of props) {
-    const { nights, compCount, compNote, latestSnapshot, pace } = await priceProperty(q, p, start, events);
+    const { nights, compCount, compNote, latestSnapshot, pace } = await priceProperty(q, p, start, events, undefined, { smooth: true });
     const sample = (d: number) => `${nights[d].date} Rp ${(nights[d].price / 1e6).toFixed(2)}m (min ${nights[d].minStay})`;
     console.log(
       `${p.name}: priced ${nights.length} nights against ${compCount} comparable villas (${compNote}); ` +

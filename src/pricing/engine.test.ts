@@ -70,3 +70,28 @@ test("last-minute open nights are discounted with a short minimum stay", () => {
   assert.equal(n.price, 4_250_000);
   assert.equal(n.minStay, 1);
 });
+
+test("a villa with under 5 reviews is held at the median, then moves to its chosen position", () => {
+  assert.equal(priceNights(base({ position: 0.9, reviews: 0 }))[20].price, 5_000_000);
+  assert.equal(priceNights(base({ position: 0.9, reviews: 12 }))[20].price, 5_800_000);
+});
+
+test("a quiet period doesn't discount a night inside a big holiday", () => {
+  const events = [
+    { name: "Ramadan", category: "holiday", start: "2026-11-10", end: "2026-11-25", impact: "low" as const, why: "Quiet.", effect: "down" as const },
+    { name: "Lebaran", category: "holiday", start: "2026-11-22", end: "2026-11-30", impact: "high" as const, why: "Busy." },
+  ];
+  const out = priceNights(base({ events }));
+  assert.equal(out[12].price, 4_750_000); // Ramadan alone: −5%
+  assert.equal(out[20].price, 6_000_000); // Lebaran: +20% floor, no Ramadan cut
+});
+
+import { unopenedAsUnknown } from "./load.js";
+
+test("calendar nights not opened yet count as unknown, not booked", () => {
+  assert.equal(unopenedAsUnknown("1101" + "0".repeat(10)), "1101" + "?".repeat(10));
+  assert.equal(unopenedAsUnknown("110100"), "110100"); // a short run at the end is likely real bookings
+  // Booked nights stop counting as demand once they're past the calendar's edge.
+  const comps = ["a", "b", "c"].map((id) => comp(id, 5_000_000, unopenedAsUnknown("1".repeat(30) + "0".repeat(10))));
+  assert.equal(priceNights(base({ comps }))[35].marketOcc, null);
+});

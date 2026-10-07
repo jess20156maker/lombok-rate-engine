@@ -48,6 +48,7 @@ export type EngineInput = {
   start: string; // day 0, YYYY-MM-DD
   days: number;
   position: number; // 0..1
+  reviews?: number | null; // the villa's own review count; under 5 holds it at the market middle
   minRate: number;
   maxRate: number;
   baseMinStay: number;
@@ -113,7 +114,11 @@ export function priceNights(input: EngineInput): NightPrice[] {
 
   // 1. Standing: the villa's place among comparable villas' usual prices.
   const typicals = comps.map((c) => c.typical).filter((t) => t > 0);
-  const standing = quantile(typicals, input.position) ?? input.minRate;
+  // Guests pay a premium for proven villas: until a few reviews are in, price
+  // at the comparable villas' median at most.
+  const newVilla = input.reviews != null && input.reviews < 5 && input.position > 0.5;
+  const position = newVilla ? 0.5 : input.position;
+  const standing = quantile(typicals, position) ?? input.minRate;
 
   // 2. Date factors, falling back to the wider beach, then to nearby days,
   // then to the month's typical factor.
@@ -158,7 +163,9 @@ export function priceNights(input: EngineInput): NightPrice[] {
 
     reasons.push({
       kind: "standing",
-      label: `Starts from comparable villas' usual rate at your chosen position (${Math.round(input.position * 100)}th percentile of ${typicals.length})`,
+      label: newVilla
+        ? `Starts from comparable villas' median usual rate (of ${typicals.length}): held there until the villa has 5 reviews, then your chosen ${Math.round(input.position * 100)}th percentile`
+        : `Starts from comparable villas' usual rate at your chosen position (${Math.round(input.position * 100)}th percentile of ${typicals.length})`,
       effect: null,
     });
 
@@ -225,7 +232,7 @@ export function priceNights(input: EngineInput): NightPrice[] {
           kind: "pace",
           label:
             m > 1
-              ? `This night is booking up faster than usual: +${Math.round(pace[d]! * 100)} points this week`
+              ? `This night is booking up faster than nearby nights this week (${Math.round(pace[d]! * 100)} vs ${Math.round(localPace * 100)} points)`
               : `This night is booking up slower than usual this week`,
           effect: m,
         });
@@ -235,10 +242,14 @@ export function priceNights(input: EngineInput): NightPrice[] {
 
     // 5. Events: a floor under the big ones, a dip for quiet periods
     const rel = price / standing;
+    const isBig = (e: EventInput) => e.effect !== "down" && e.impact === "high" && e.category !== "season" && e.category !== "school-holiday";
+    // A quiet period never discounts a night that a big event covers (Ramadan's last days are Lebaran week).
+    const bigToday = input.events.some((e) => e.start <= date && e.end >= date && isBig(e));
     for (const e of input.events) {
       if (e.start > date || e.end < date) continue;
       if (e.category === "school-holiday" || e.category === "season") continue;
       if (e.effect === "down") {
+        if (bigToday) continue;
         reasons.push({ kind: "event", label: `${e.name}: ${e.why}`, effect: 0.95 });
         price *= 0.95;
       } else if (e.impact !== "low") {
