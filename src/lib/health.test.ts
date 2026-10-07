@@ -48,6 +48,7 @@ function fake(w: World): Query {
       if (text.includes("from job_runs")) return [];
       if (text.includes("ical_url is not null")) return [{ n: 0 }];
       if (text.includes("from listings")) return [{ day: "2026-10-04" }];
+      if (text.includes("pg_database_size")) return [{ b: 150e6 }];
       throw new Error(`unexpected query: ${text}`);
     })();
     return { rows };

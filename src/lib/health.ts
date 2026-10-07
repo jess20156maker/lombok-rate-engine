@@ -151,5 +151,15 @@ export async function runHealth(q: Query, now = new Date()): Promise<Health> {
     detail: lastSeen ? `Airbnb villas last refreshed ${lastSeen}` : "never",
   });
 
+  // Supabase's free plan holds 500 MB; the history grows about 1.2 MB a day.
+  const { rows: size } = await q("select pg_database_size(current_database())::float8 as b");
+  const mb = Math.round(size[0].b / 1e6);
+  add({
+    name: "Database space",
+    ok: mb < 480,
+    warn: mb >= 400,
+    detail: `${mb} MB of 500 MB used${mb >= 400 ? ": time to upgrade the database plan or thin out old history" : ""}`,
+  });
+
   return { ok: checks.every((c) => c.ok), checkedAt: now.toISOString(), today, checks };
 }
