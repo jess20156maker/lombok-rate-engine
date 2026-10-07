@@ -8,7 +8,7 @@ github.com/jess20156maker/lombok-rate-engine (private).
 | Piece | Where | How |
 |---|---|---|
 | Airbnb + Booking.com collection | GitHub Actions, nightly 01:00 Lombok (17:00 UTC) | `.github/workflows/nightly.yml`: check-env, hydrate, daily, Booking.com |
-| New/removed listing sweep | GitHub Actions, Sundays 00:00 Lombok | `.github/workflows/weekly-discover.yml` |
+| New/removed listing sweep | GitHub Actions, daily 00:00 Lombok (nightly price searches also add new places) | `.github/workflows/weekly-discover.yml` |
 | Database | Supabase Postgres, ap-south-1 (Mumbai) | `db/schema.sql`, `npm run db:migrate`; RLS on, no policies (public API locked out) |
 | Dashboard | https://lombok-rate-engine.vercel.app (Vercel team seqnce-ops = the user's personal Hobby account), auto-deploys on push to main; locally `cd web && npx next dev --port 3100` | Next.js 16 in `web/` (Vercel root dir `web`, source outside root on); password gate in `web/proxy.ts` via `DASHBOARD_PASSWORD` env; read `web/AGENTS.md` first |
 

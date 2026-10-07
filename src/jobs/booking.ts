@@ -122,6 +122,11 @@ try {
 console.log(`Booking.com shard ${shardNo}/${shardCount}: bot check met ${blocks} time(s), ${failedDates} date(s) skipped`);
 
 async function saveListings(results: BookingResult[]) {
+  // Keep the date each place was first found (the upsert below rewrites every column).
+  const { rows: had } = await db.query("select id, first_seen::text from listings where platform = 'booking' and id = any($1)", [
+    results.map((r) => r.id),
+  ]);
+  const firstSeen = new Map(had.map((r) => [r.id as string, r.first_seen as string]));
   await upsert(
     "listings",
     ["platform", "id"],
@@ -136,17 +141,10 @@ async function saveListings(results: BookingResult[]) {
       bedrooms: r.bedrooms,
       rating: r.rating,
       slug: r.pageName,
-      first_seen: date, // kept on conflict below
+      first_seen: firstSeen.get(r.id) ?? date,
       last_seen: date,
       active: true,
     })),
-  );
-  // upsert overwrote first_seen; restore the earliest date we have evidence for.
-  await db.query(
-    `update listings l set first_seen = least(l.first_seen, coalesce(
-        (select min(snapshot_date) from price_samples p where p.platform = 'booking' and p.listing_id = l.id), l.first_seen))
-      where l.platform = 'booking' and l.last_seen = $1`,
-    [date],
   );
 }
 

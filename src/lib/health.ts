@@ -147,7 +147,7 @@ export async function runHealth(q: Query, now = new Date()): Promise<Health> {
   const lastSeen = str(seen[0]?.day);
   add({
     name: "Listings up to date",
-    ok: lastSeen != null && lastSeen >= addDays(today, -9),
+    ok: lastSeen != null && lastSeen >= addDays(today, -2),
     detail: lastSeen ? `Airbnb villas last refreshed ${lastSeen}` : "never",
   });
 

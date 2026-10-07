@@ -12,7 +12,7 @@ import { watchedKeys } from "./watch";
 import type { BookingListing, ExploreData, ExploreListing, MarketEvent } from "./explore-types";
 
 const DAY = 86_400_000;
-const PAYLOAD_VERSION = 7;
+const PAYLOAD_VERSION = 8;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 
 function loadEvents(): MarketEvent[] {
@@ -67,6 +67,7 @@ export async function loadExplore(): Promise<ExploreData | null> {
       beds: b.beds,
       bookingSlug: b.slug,
       dormant: false,
+      firstSeen: b.firstSeen,
       nights,
       minStay: [],
     });
@@ -82,7 +83,7 @@ export async function loadExplore(): Promise<ExploreData | null> {
 async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watched" | "booking" | "web">> {
 
   const [ls, cals, prices, changes] = await Promise.all([
-    pool.query("select id, name, kind, area, bedrooms, rating from listings where platform = 'airbnb' and active"),
+    pool.query("select id, name, kind, area, bedrooms, rating, first_seen::text from listings where platform = 'airbnb' and active"),
     pool.query(
       "select listing_id, from_date, nights, min_stay from calendar_snapshots where snapshot_date = $1 and platform = 'airbnb'",
       [snapshot],
@@ -129,6 +130,7 @@ async function buildExplore(snapshot: string): Promise<Omit<ExploreData, "watche
       beds: bedroomGroup(l.bedrooms),
       bookingSlug: null, // filled from the (fresher) Booking.com data in loadExplore
       dormant: nights.length > 0 && blocked / nights.length > 0.95,
+      firstSeen: l.first_seen,
       nights,
       minStay,
     });
@@ -181,7 +183,7 @@ async function loadBooking(from: string, days: number): Promise<ExploreData["boo
   if (!snapshot) return { snapshot: null, listings: [], prices: {}, wasPrices: {}, checked: [], ratio: 0.87 };
 
   const [ls, ps, links] = await Promise.all([
-    pool.query("select id, name, area, bedrooms, rating, slug from listings where platform = 'booking' and active"),
+    pool.query("select id, name, area, bedrooms, rating, slug, first_seen::text from listings where platform = 'booking' and active"),
     pool.query(
       `select listing_id, checkin, round(total / nights)::int per_night
          from price_samples where platform = 'booking' and snapshot_date = $1`,
@@ -199,6 +201,7 @@ async function loadBooking(from: string, days: number): Promise<ExploreData["boo
     rating: l.rating,
     slug: l.slug ?? "",
     airbnbId: airbnbByBooking.get(l.id) ?? null,
+    firstSeen: l.first_seen,
   }));
   const index = new Map(listings.map((l, i) => [l.id, i]));
   const prices: ExploreData["booking"]["prices"] = {};

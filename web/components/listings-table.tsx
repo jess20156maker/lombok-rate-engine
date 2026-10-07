@@ -6,7 +6,11 @@ import { StarButton } from "@/components/star-button";
 import type { ExploreData } from "@/lib/explore-types";
 import { fmt } from "@/lib/money";
 
-type SortKey = "booked30" | "booked90" | "price" | "beds" | "name" | "reviews";
+type SortKey = "booked30" | "booked90" | "price" | "beds" | "name" | "reviews" | "found";
+
+// Places found before this were the first sweeps building the list, not new to the market.
+const TRACKING_SETTLED = "2026-10-06";
+const NEW_DAYS = 14;
 type Site = "all" | "airbnb" | "booking";
 
 const median = (xs: number[]) => {
@@ -32,12 +36,15 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
   );
 }
 
-export function ListingsTable({ data, initial }: { data: ExploreData; initial: { area: string; q: string } }) {
+export function ListingsTable({ data, initial }: { data: ExploreData; initial: { area: string; q: string; onlyNew?: boolean } }) {
   const [areas, setAreas] = useState<string[]>(initial.area ? [initial.area] : []);
   const [beds, setBeds] = useState<string[]>([]);
   const [site, setSite] = useState<Site>("all");
   const [q, setQ] = useState(initial.q);
   const [dormant, setDormant] = useState(false);
+  const [onlyNew, setOnlyNew] = useState(initial.onlyNew ?? false);
+  const newSince = new Date(Date.parse(data.snapshot) - NEW_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const isNew = (l: ExploreData["listings"][number]) => l.firstSeen >= TRACKING_SETTLED && l.firstSeen >= newSince;
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "booked30", desc: true });
   const [limit, setLimit] = useState(100);
   const aud = (n: number | null) => fmt(n, { currency: "AUD", audRate: data.audRate, rateDate: "" });
@@ -65,13 +72,14 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
   const shown = useMemo(() => {
     const ql = q.trim().toLowerCase();
     const val = (r: (typeof rows)[number]): number | string | null =>
-      sort.key === "name" ? r.l.name.toLowerCase() : sort.key === "beds" ? r.l.bedrooms : r[sort.key];
+      sort.key === "name" ? r.l.name.toLowerCase() : sort.key === "beds" ? r.l.bedrooms : sort.key === "found" ? r.l.firstSeen : r[sort.key];
     return rows
       .filter((r) => site === "all" || r.l.platform === site)
       .filter((r) => !areas.length || areas.includes(r.l.area))
       .filter((r) => !beds.length || beds.includes(r.l.beds))
       .filter((r) => !ql || r.l.name.toLowerCase().includes(ql))
       .filter((r) => dormant || ql || !r.l.dormant)
+      .filter((r) => !onlyNew || isNew(r.l))
       .sort((a, b) => {
         const x = val(a);
         const y = val(b);
@@ -80,7 +88,8 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
         const c = x < y ? -1 : x > y ? 1 : 0;
         return sort.desc ? -c : c;
       });
-  }, [rows, site, areas, beds, q, dormant, sort]);
+  }, [rows, site, areas, beds, q, dormant, sort, onlyNew]);
+  const newCount = useMemo(() => rows.filter((r) => isNew(r.l)).length, [rows]);
 
   const head = (key: SortKey, label: string, right = false) => (
     <th className={`whitespace-nowrap px-3 py-2 text-xs font-medium text-muted ${right ? "text-right" : "text-left"}`}>
@@ -143,6 +152,15 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
             placeholder="Find a place by name…"
             className="w-64 rounded-full border border-line bg-panel px-4 py-1.5 text-sm placeholder:text-faint focus:border-accent focus:outline-none"
           />
+          <Chip
+            on={onlyNew}
+            onClick={() => {
+              setOnlyNew(!onlyNew);
+              if (!onlyNew) setSort({ key: "found", desc: true });
+            }}
+          >
+            New in the last {NEW_DAYS} days ({newCount})
+          </Chip>
           <label className="flex items-center gap-2 text-xs text-muted">
             <input type="checkbox" checked={dormant} onChange={(e) => setDormant(e.target.checked)} />
             Include places closed all year
@@ -161,6 +179,7 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
               {head("booked90", "Booked 90d", true)}
               {head("price", "Typical nightly", true)}
               {head("reviews", "Rating", true)}
+              {head("found", "First found", true)}
             </tr>
           </thead>
           <tbody>
@@ -182,6 +201,11 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
                   <div className="pl-6 text-[11px] text-muted">
                     {l.platform === "airbnb" ? (l.bookingSlug ? "Airbnb + Booking.com" : "Airbnb") : "Booking.com only"}
                     {l.dormant ? " · closed all year" : ""}
+                    {isNew(l) && (
+                      <span className="ml-1.5 rounded-full bg-accent px-1.5 py-px text-[10px] font-medium text-white dark:text-black">
+                        {l.rating && /\(\d/.test(l.rating) ? "newly found" : "new listing"}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2">{l.area}</td>
@@ -193,6 +217,9 @@ export function ListingsTable({ data, initial }: { data: ExploreData; initial: {
                   <span className="block text-[10px] text-faint">{price != null ? idr(price) : ""}</span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-muted">{l.rating ?? "–"}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right text-muted">
+                  {l.firstSeen < TRACKING_SETTLED ? "from the start" : new Date(l.firstSeen + "T00:00:00Z").toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "UTC" })}
+                </td>
               </tr>
             ))}
           </tbody>

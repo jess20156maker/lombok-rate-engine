@@ -1,10 +1,10 @@
-# Weekly sweep for new and removed listings. Sundays 00:00 Lombok time,
+# Daily sweep for new and removed listings, 00:00 Lombok time,
 # an hour before that night's collection.
-name: Weekly discovery
+name: Daily discovery
 
 on:
   schedule:
-    - cron: "0 16 * * 6"
+    - cron: "0 16 * * *"
   workflow_dispatch: {}
 
 concurrency:

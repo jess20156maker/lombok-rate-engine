@@ -13,6 +13,7 @@ export type ExploreListing = {
   beds: string; // bedroom group: "1" | "2" | "3" | "4+"
   bookingSlug: string | null; // also on Booking.com: booking.com/hotel/id/<slug>.html
   dormant: boolean;
+  firstSeen: string; // when we first found it, YYYY-MM-DD
   /** One char per night from ExploreData.from: "1" open, "c" open no check-in, "0" blocked, "?" unknown. */
   nights: string;
   /** Minimum stay where it changes, as [dayIndex, nights]. */
@@ -42,6 +43,7 @@ export type BookingListing = {
   rating: string | null; // out of 10
   slug: string;
   airbnbId: string | null; // the same place on Airbnb, if matched
+  firstSeen: string;
 };
 
 export type ExploreData = {

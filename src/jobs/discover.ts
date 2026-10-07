@@ -1,5 +1,5 @@
 // Sweep the whole market on Airbnb and update the listings registry.
-// Run weekly; new villas appear and old ones disappear constantly.
+// Runs daily before the nightly collection; new villas appear and old ones disappear constantly.
 //
 //   npm run discover
 
@@ -54,8 +54,11 @@ for (const l of found.values()) {
     active: true,
   };
 }
+// Searches miss a few places on any given day; retire only those not seen by
+// the sweep or the nightly price searches for a week.
+const weekAgo = new Date(Date.parse(date) - 7 * 86_400_000).toISOString().slice(0, 10);
 for (const [key, l] of Object.entries(all)) {
-  if (l.platform === "airbnb" && !seen.has(key)) l.active = false;
+  if (l.platform === "airbnb" && !seen.has(key) && l.lastSeen < weekAgo) l.active = false;
 }
 listings.save(all);
 
