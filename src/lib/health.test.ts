@@ -11,6 +11,7 @@ const EARLY = new Date("2026-10-07T20:00:00Z");
 const AFTERNOON = new Date("2026-10-08T06:00:00Z");
 
 type World = {
+  listingsSeen?: string;
   air?: [string, number, number][]; // [day, dates searched, places priced], newest first
   booking?: [string, number, number][];
   calendars?: [string, number][];
@@ -47,7 +48,7 @@ function fake(w: World): Query {
         return [{ id: "v", name: "Mulai Villa", min_rate: 1, max_rate: 2, at: w.pricedAt ?? null, nights: w.nights ?? 0, outside: w.outside ?? 0 }];
       if (text.includes("from job_runs")) return [];
       if (text.includes("ical_url is not null")) return [{ n: 0 }];
-      if (text.includes("from listings")) return [{ day: "2026-10-04" }];
+      if (text.includes("from listings")) return [{ day: w.listingsSeen ?? "2026-10-07" }];
       if (text.includes("pg_database_size")) return [{ b: 150e6 }];
       throw new Error(`unexpected query: ${text}`);
     })();
@@ -86,4 +87,8 @@ test("a jump in typical price (a parsing or currency mistake) fails", async () =
 test("the villa not re-priced, or priced outside its limits, fails", async () => {
   assert.deepEqual(await failed({ ...good, pricedAt: "2026-10-06T03:00:00Z" }), ["Mulai Villa pricing"]);
   assert.deepEqual(await failed({ ...good, outside: 3 }), ["Mulai Villa pricing"]);
+});
+
+test("the new-listings sweep stopping fails", async () => {
+  assert.deepEqual(await failed({ ...good, listingsSeen: "2026-10-04" }), ["Listings up to date"]);
 });
