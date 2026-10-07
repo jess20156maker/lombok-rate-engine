@@ -230,3 +230,26 @@ create table if not exists price_history (
   primary key (property_id, run_date)
 );
 alter table price_history enable row level security;
+
+-- ============================================================================
+-- Monitoring
+-- ============================================================================
+
+-- One row per run of a scheduled job, so the health check can see it happened.
+create table if not exists job_runs (
+  job     text not null,
+  ran_at  timestamptz not null default now(),
+  ok      boolean not null,
+  detail  text not null default '',
+  primary key (job, ran_at)
+);
+alter table job_runs enable row level security;
+
+-- The twice-daily health check's results (src/jobs/health.ts).
+create table if not exists health_checks (
+  checked_at timestamptz primary key default now(),
+  ok         boolean not null,
+  checks     jsonb not null,
+  healed     text
+);
+alter table health_checks enable row level security;

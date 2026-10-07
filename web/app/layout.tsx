@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Assistant } from "@/components/assistant";
+import { HealthBadge } from "@/components/health-badge";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -40,6 +42,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 </Link>
               ))}
             </nav>
+            <Suspense fallback={null}>
+              <HealthBadge />
+            </Suspense>
             <form action="/rates" className="ml-auto w-full sm:w-64">
               <input
                 name="q"

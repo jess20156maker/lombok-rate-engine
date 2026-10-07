@@ -17,6 +17,8 @@ export function proxy(request: NextRequest) {
   // Calendar feeds for Airbnb/Booking.com: they can't send a password, so the
   // feed's own long secret token protects it instead.
   if (request.nextUrl.pathname.startsWith("/api/ical/")) return NextResponse.next();
+  // Health status (pass/fail only), for the automatic checks.
+  if (request.nextUrl.pathname === "/api/health") return NextResponse.next();
 
   const header = request.headers.get("authorization") ?? "";
   if (header.startsWith("Basic ")) {

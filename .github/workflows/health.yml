@@ -1,0 +1,83 @@
+# Twice-daily proof that everything works: 11:00 and 17:00 Lombok (03:00, 09:00 UTC).
+#
+# Checks today's Airbnb and Booking.com data is in, complete and believable, the
+# villa was re-priced, and the website is up behind its password and reading the
+# database. If collection is missing it re-runs the nightly job itself. Any
+# problem opens a GitHub issue (which emails the repo owner); the issue closes
+# itself once a later check passes.
+name: Health check
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  actions: write   # to re-run the nightly collection
+  issues: write    # to raise and close alerts
+  contents: read
+
+concurrency:
+  group: health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # GitHub switches off schedules in a repository with no commits for 60
+      # days; re-enabling them every day keeps the nightly jobs running for good.
+      - name: Keep the schedules switched on
+        run: for w in nightly.yml calendar-sync.yml weekly-discover.yml health.yml; do gh workflow enable "$w" || true; done
+      - id: health
+        run: npm run health
+        continue-on-error: true
+      - name: Show the report on the run page
+        if: always()
+        run: cat health-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      # Collection missing or incomplete: start it again, unless it is already
+      # running or has already been re-run in the last 12 hours.
+      - name: Re-run collection if needed
+        if: hashFiles('health-heal.txt') != ''
+        run: |
+          busy=$(gh run list --workflow nightly.yml --limit 5 --json status -q '[.[] | select(.status != "completed")] | length')
+          recent=$(gh run list --workflow nightly.yml --event workflow_dispatch --limit 5 --json createdAt \
+            -q "[.[] | select(.createdAt > \"$(date -u -d '12 hours ago' +%FT%TZ)\")] | length")
+          if [ "$busy" = "0" ] && [ "$recent" = "0" ]; then
+            gh workflow run nightly.yml
+            echo "Nightly collection restarted." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nightly collection already running or re-run recently; not starting another." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Raise or update the alert
+        if: steps.health.outcome == 'failure'
+        run: |
+          gh label create health --color d73a4a --description "Automatic health check" --force >/dev/null
+          n=$(gh issue list --label health --state open --limit 1 --json number -q '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body-file health-report.md
+          else
+            gh issue create --title "Rate engine health check failed" --label health --body-file health-report.md
+          fi
+          exit 1
+
+      - name: Close the alert once healthy
+        if: steps.health.outcome == 'success'
+        run: |
+          for n in $(gh issue list --label health --state open --json number -q '.[].number'); do
+            gh issue close "$n" --comment "Fixed: all checks passed on $(date -u '+%F %H:%M') UTC."
+          done

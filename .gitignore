@@ -5,3 +5,5 @@ tools/
 .vercel
 .env*
 dashboard-password.txt
+health-report.md
+health-heal.txt
