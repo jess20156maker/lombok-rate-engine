@@ -23,5 +23,6 @@ jobs:
       - run: npm run typecheck
       - run: npm ci
         working-directory: web
-      - run: npx tsc --noEmit
+      # Next.js generates the page/route prop types first.
+      - run: npx next typegen && npx tsc --noEmit
         working-directory: web
