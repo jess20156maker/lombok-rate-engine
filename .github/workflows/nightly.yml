@@ -6,6 +6,7 @@
 #   prices    Airbnb prices for every date in the next 6 months, split 6 ways
 #   booking   Booking.com for the same dates, split 3 ways
 #   finish    retire stale places, match cross-listed places, pack old price days
+#   announce  comment the day's new villas on the pinned "New villas" issue (emails the owner)
 name: Nightly collection
 
 on:
@@ -21,6 +22,10 @@ on:
 concurrency:
   group: collection
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write    # the daily new-villas message
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -94,3 +99,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run finish
+
+  announce:
+    needs: finish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run new-villas
+      - name: Post to the New villas issue
+        run: |
+          [ -s new-villas.md ] || exit 0
+          gh label create new-villas --color 0e8a16 --description "Daily new villas" --force >/dev/null
+          n=$(gh issue list --label new-villas --state open --limit 1 --json number -q '.[0].number')
+          if [ -z "$n" ]; then
+            url=$(gh issue create --title "New villas in south Lombok" --label new-villas \
+              --body "Every morning after the nightly collection, the Airbnb and Booking.com places seen for the first time are posted here as a comment.")
+            n=${url##*/}
+            gh issue pin "$n" || true
+          fi
+          gh issue comment "$n" --body-file new-villas.md

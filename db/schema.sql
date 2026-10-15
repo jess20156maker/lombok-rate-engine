@@ -266,3 +266,12 @@ create table if not exists listing_reviews (
 );
 create index if not exists listing_reviews_listing on listing_reviews (platform, listing_id, snapshot_date);
 alter table listing_reviews enable row level security;
+
+-- Places already announced in the daily "new villas" message (src/jobs/new-villas.ts).
+create table if not exists listing_announcements (
+  platform     text not null,
+  listing_id   text not null,
+  announced_on date not null,
+  primary key (platform, listing_id)
+);
+alter table listing_announcements enable row level security;

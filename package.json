@@ -20,7 +20,8 @@
     "test": "tsx --test src/pricing/engine.test.ts src/lib/ical.test.ts src/lib/health.test.ts",
     "calendar-sync": "tsx src/jobs/calendar-sync.ts",
     "websites": "tsx src/jobs/websites.ts",
-    "health": "tsx src/jobs/health.ts"
+    "health": "tsx src/jobs/health.ts",
+    "new-villas": "tsx src/jobs/new-villas.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

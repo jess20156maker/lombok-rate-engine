@@ -83,6 +83,9 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
   (emails the owner), and re-enables the schedules. Results in `health_checks`; `/collection` shows them; the header shows
   a red badge on failure or if checks stop. `/api/health` is public (pass/fail only).
 - `.github/workflows/test.yml`: tests + type-checks on every push.
+- Daily new villas: the nightly `announce` job runs `npm run new-villas` (`src/jobs/new-villas.ts`), which lists active
+  places not yet in `listing_announcements` and comments them on the pinned issue #3 "New villas in south Lombok"
+  (label `new-villas`; emails the owner). Posts "no new places" once a day when there are none.
 - `listing_reviews`: daily rating + review count per place (from `npm run finish`; Airbnb ratings refreshed by `prices`).
 
 ## Next
