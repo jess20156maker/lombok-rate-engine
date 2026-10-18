@@ -95,3 +95,67 @@ test("calendar nights not opened yet count as unknown, not booked", () => {
   const comps = ["a", "b", "c"].map((id) => comp(id, 5_000_000, unopenedAsUnknown("1".repeat(30) + "0".repeat(10))));
   assert.equal(priceNights(base({ comps }))[35].marketOcc, null);
 });
+
+import { bookedSignal, BOOKED_HALF_WEIGHT } from "./engine.js";
+
+// Ten comparable villas, all usually Rp 5m, all listed at Rp 5m on days 0–39.
+// `bookedAt` is what the booked nights went for.
+const market = (bookedAt: number, perVilla = 30, unsoldAt?: number) =>
+  Array.from({ length: 10 }, (_, i): CompInput => ({
+    id: `v${i}`,
+    typical: 5_000_000,
+    nights: "1".repeat(40),
+    priced: new Map(Array.from({ length: 40 }, (_, d) => [d, 5_000_000] as [number, number])),
+    booked: Array.from({ length: perVilla }, (_, k) => ({ day: -k - 1, price: bookedAt })),
+    unsold: unsoldAt ? Array.from({ length: 5 }, (_, k) => ({ day: -k - 1, price: unsoldAt })) : [],
+  }));
+
+// Thirty more villas on the beach, listed at their usual Rp 5m on those past nights: the going rate.
+const beach = Array.from({ length: 30 }, (_, i): CompInput => ({
+  id: `w${i}`,
+  typical: 5_000_000,
+  nights: "1".repeat(40),
+  priced: new Map(),
+  unsold: Array.from({ length: 100 }, (_, k) => ({ day: -k - 1, price: 5_000_000 })),
+}));
+
+test("booked prices below the going rate nudge the price down, weighted by sample size", () => {
+  // 300 booked nights at 10% below a Rp 5m going rate (the unsold ones keep it there).
+  const comps = market(4_500_000, 30, 5_500_000);
+  const n = priceNights(base({ comps, wider: beach }))[20];
+  const r = n.reasons.find((x) => x.kind === "booked")!;
+  const w = 300 / (300 + BOOKED_HALF_WEIGHT);
+  assert.ok(Math.abs(r.effect! - (1 - 0.1 * w)) < 0.01, `effect ${r.effect}`);
+  assert.match(r.label, /below the going rate \(300 booked nights; nights left unbooked close in were \d+% above\)/);
+  assert.ok(n.price < 5_000_000);
+});
+
+test("booked prices above the going rate nudge it up", () => {
+  const n = priceNights(base({ comps: market(5_500_000), wider: beach }))[20];
+  assert.ok(n.reasons.find((x) => x.kind === "booked")!.effect! > 1);
+  assert.ok(n.price > 5_000_000);
+});
+
+test("the booked-price signal stays silent with under 10 booked nights and fades in as data grows", () => {
+  assert.equal(bookedSignal(market(4_000_000, 0).map((c, i) => (i ? c : { ...c, booked: c.booked!.concat([{ day: -1, price: 4e6 }]) })), beach, 40), null);
+  const few = bookedSignal(market(4_000_000, 2), beach, 40)![20].effect!; // 20 nights
+  const many = bookedSignal(market(4_000_000, 100), beach, 40)![20].effect!; // 1000 nights
+  assert.ok(few > many && few < 1, `few ${few}, many ${many}`);
+  assert.ok(many >= 0.88); // never more than −12%
+});
+
+test("booked nights near a date move that date more than others", () => {
+  const comps = market(5_000_000, 30);
+  for (const c of comps.slice(0, 5)) c.booked!.push({ day: 20, price: 6_000_000 }); // half booked night 20 at Rp 6m
+  const s = bookedSignal(comps, [], 40)!;
+  assert.ok(s[20].effect! > 1.01 && s[35].effect == null, `${s[20].effect} / ${s[35].effect}`);
+  assert.match(s[20].label, /the 5 booked around this date were 9% above it/);
+});
+
+test("min/max and overrides still win over the booked-price signal", () => {
+  const comps = market(4_000_000, 100);
+  const overrides = new Map([[21, { price: 9_000_000, minStay: null, note: null }]]);
+  const out = priceNights(base({ comps, wider: beach, overrides, minRate: 5_000_000 }));
+  assert.equal(out[20].price, 5_000_000);
+  assert.equal(out[21].price, 9_000_000);
+});

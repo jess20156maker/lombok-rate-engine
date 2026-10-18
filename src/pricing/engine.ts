@@ -10,6 +10,10 @@
 //   2. Date       How comparable villas price THIS night relative to their own
 //                 usual rate (a ratio, so it isn't skewed by which villas are
 //                 still available).
+//   2b. Booked    What comparable villas actually got booked at, against the
+//                 going rate for those nights: if the ones that sell are priced
+//                 below (or above) the rest, move toward that level. Fades in as
+//                 booked nights accumulate.
 //   3. Demand     How booked the comparable villas are this night versus
 //                 nearby nights.
 //   4. Pace       How fast this night filled over the past week versus usual
@@ -21,7 +25,7 @@
 //   8. Your rules Manual overrides win; everything is kept within min/max.
 
 export type Reason = {
-  kind: "standing" | "date" | "demand" | "pace" | "event" | "timing" | "gap" | "override" | "limit";
+  kind: "standing" | "date" | "booked" | "demand" | "pace" | "event" | "timing" | "gap" | "override" | "limit";
   label: string;
   effect: number | null; // multiplier applied (1.12 = +12%), null for context lines
 };
@@ -32,6 +36,10 @@ export type CompInput = {
   nights: string; // availability from day 0: "0" blocked, anything else open
   priced: Map<number, number>; // day index -> IDR per night observed for that date
   prevNights?: string; // the same villa's availability ~a week earlier, aligned to day 0
+  // Nights that got booked, at the last price seen while still open (day index, may be negative = past).
+  booked?: { day: number; price: number }[];
+  // Past nights still open a day or two before: what didn't sell, at its last price.
+  unsold?: { day: number; price: number }[];
 };
 
 export type EventInput = {
@@ -107,6 +115,88 @@ function occupancy(comps: CompInput[], day: number, which: "nights" | "prevNight
   return known >= 3 ? blocked / known : null;
 }
 
+/** Booked comparable nights at which the booked-price signal has half its weight. */
+export const BOOKED_HALF_WEIGHT = 200;
+/** How many booked nights near a date count as much as the overall picture. */
+const BOOKED_LOCAL_PRIOR = 8;
+
+const vs = (r: number) => {
+  const p = Math.round(Math.abs(r - 1) * 100);
+  return p === 0 ? "in line with" : `${p}% ${r < 1 ? "below" : "above"}`;
+};
+
+/**
+ * Booked-price signal. Each booked (or unsold) night is scored as that villa's
+ * price relative to its own usual rate, divided by the same measure across
+ * every villa listed that night (the going rate). Below 1 means the villas
+ * that sold were cheaper than the market was asking. Returns, per night, the
+ * multiplier and its reason, or null when there's too little data.
+ */
+export function bookedSignal(comps: CompInput[], wider: CompInput[], days: number) {
+  // The going rate per night: median of price/usual over every villa listed then.
+  const listed = new Map<number, Map<string, number>>();
+  const add = (d: number, id: string, rel: number, replace: boolean) => {
+    if (!listed.has(d)) listed.set(d, new Map());
+    const m = listed.get(d)!;
+    if (replace || !m.has(id)) m.set(id, rel);
+  };
+  for (const c of [...comps, ...wider]) {
+    if (!(c.typical > 0)) continue;
+    for (const [d, p] of c.priced) add(d, c.id, p / c.typical, false);
+    for (const u of c.unsold ?? []) add(u.day, c.id, u.price / c.typical, true);
+    for (const b of c.booked ?? []) add(b.day, c.id, b.price / c.typical, true);
+  }
+  const going = new Map<number, number | null>();
+  const goingRate = (d: number) => {
+    if (!going.has(d)) {
+      const xs = [...(listed.get(d)?.values() ?? [])];
+      going.set(d, xs.length >= 5 ? median(xs) : null);
+    }
+    return going.get(d)!;
+  };
+  const score = (c: CompInput, n: { day: number; price: number }) => {
+    const g = goingRate(n.day);
+    return g ? n.price / c.typical / g : null;
+  };
+  const booked: { day: number; s: number }[] = [];
+  const unsold: number[] = [];
+  for (const c of comps) {
+    if (!(c.typical > 0)) continue;
+    for (const b of c.booked ?? []) {
+      const s = score(c, b);
+      if (s != null) booked.push({ day: b.day, s });
+    }
+    for (const u of c.unsold ?? []) {
+      const s = score(c, u);
+      if (s != null) unsold.push(s);
+    }
+  }
+  const n = booked.length;
+  if (n < 10) return null;
+  const overall = clamp(median(booked.map((b) => b.s))!, 0.85, 1.15);
+  const unsoldLevel = unsold.length >= 10 ? median(unsold) : null;
+  const weight = n / (n + BOOKED_HALF_WEIGHT);
+
+  return Array.from({ length: days }, (_, d): Reason => {
+    const near = booked.filter((b) => Math.abs(b.day - d) <= 3).map((b) => b.s);
+    const local = near.length ? clamp(median(near)!, 0.75, 1.3) : overall;
+    const blended = (near.length * local + BOOKED_LOCAL_PRIOR * overall) / (near.length + BOOKED_LOCAL_PRIOR);
+    const m = clamp(1 + weight * (blended - 1), 0.88, 1.12);
+    const facts =
+      `comparable villas that got booked were priced ${vs(overall)} the going rate (${n} booked nights` +
+      (unsoldLevel != null ? `; nights left unbooked close in were ${vs(unsoldLevel)}` : "") +
+      ")" +
+      (near.length >= 3 ? `, and the ${near.length} booked around this date were ${vs(local)} it` : "");
+    return Math.abs(m - 1) < 0.01
+      ? { kind: "booked", label: `What sells matches what's listed: ${facts}`, effect: null }
+      : {
+          kind: "booked",
+          label: `Moving toward the price that actually gets booked: ${facts}. Counts ${Math.round(weight * 100)}% for now, more as bookings build up`,
+          effect: m,
+        };
+  });
+}
+
 const roundPrice = (idr: number) => Math.round(idr / 50_000) * 50_000;
 
 export function priceNights(input: EngineInput): NightPrice[] {
@@ -139,6 +229,8 @@ export function priceNights(input: EngineInput): NightPrice[] {
     const m = median(byMonth.get(dateOf(input.start, d).slice(0, 7)) ?? []);
     return { f: m ?? 1, how: m != null ? ("month" as const) : ("none" as const) };
   });
+
+  const sold = bookedSignal(comps, wider, days);
 
   const occ = Array.from({ length: days }, (_, d) => occupancy(comps, d) ?? occupancy(wider, d));
   const prevOcc = Array.from({ length: days }, (_, d) => occupancy(comps, d, "prevNights") ?? occupancy(wider, d, "prevNights"));
@@ -195,6 +287,12 @@ export function priceNights(input: EngineInput): NightPrice[] {
       });
     }
     price *= fc;
+
+    // 2b. Booked prices: nudge toward the level that actually sells
+    if (sold) {
+      reasons.push(sold[d]);
+      if (sold[d].effect != null) price *= sold[d].effect!;
+    }
 
     // Seasons fill in only where there's no observed market price for the night yet.
     if (how === "month" || how === "none") {

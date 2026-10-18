@@ -64,6 +64,10 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
   `src/pricing/run.ts` into `price_recommendations` (+ `price_history`). Runs nightly in `npm run finish` and on
   every change from the website. The nightly run moves each night at most 10% a day beyond 14 days out (`MAX_DAILY_MOVE`);
   website changes apply in full. Overrides in `rate_overrides` win; min/max clamp otherwise.
+- Booked-price signal (engine step 2b, `bookedSignal`): `load.ts` gives each comp its booked nights at the last price
+  seen while still open (Airbnb: `calendar_changes` bookings still closed now; Booking.com: nights that dropped out of a
+  full check after being priced; prices on Airbnb's footing) and past nights still open 1–2 days out (unsold). Booked
+  prices vs the going rate that night nudge prices toward what sells (±12% max), weighted n/(n+200) so it fades in.
 - Calendar: `reservations` (sources airbnb/booking/direct/manual/block). `src/lib/calendar-sync.ts` imports each
   channel's iCal export (every 20 min: `.github/workflows/calendar-sync.yml`), cancels vanished events, flags
   overlaps. Feeds for the channels: `/api/ical/<ical_token>/{airbnb,booking,all}.ics` (exempt from the password;

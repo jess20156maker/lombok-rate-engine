@@ -7,6 +7,8 @@ import type { CompInput, EngineInput, EventInput } from "./engine";
 const DAY = 86_400_000;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 const HISTORY_DAYS = 30; // how far back "typical price" looks
+const BOOKED_DAYS = 120; // how far back booked and unsold nights count
+const BOOKED_PRICE_AGE = 14; // a pre-booking price older than this is too stale to use
 
 export type Property = {
   id: string;
@@ -193,6 +195,61 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
     ),
   ]);
 
+  // What booked nights were priced at. Airbnb: bookings inferred from calendar
+  // diffs (src/analysis/changes.ts) that are still closed now, at the last
+  // price seen on or before the last calendar that showed them open.
+  // Booking.com (no calendar): nights whose most recent full check had the place
+  // in results but not that night, after it was seen open with a price.
+  // Unsold: past nights that still had a price a day or two before.
+  const pricesSql = (platform: string, from: string) => `
+    select snapshot_date s, listing_id, checkin night, (total / nights)::float8 pn
+      from price_samples where platform = '${platform}' and listing_id = any($1) and snapshot_date >= '${from}'
+    union all
+    select g.snapshot_date, g.listing_id, (g.from_date + (u.k - 1)::int)::date, u.pn::float8
+      from price_grid g, unnest(g.per_night) with ordinality u(pn, k)
+     where g.platform = '${platform}' and g.listing_id = any($1) and g.snapshot_date >= '${from}' and u.pn is not null`;
+  const bookedFrom = new Date(Date.parse(latest) - (BOOKED_DAYS + BOOKED_PRICE_AGE) * DAY).toISOString().slice(0, 10);
+  const [abBooked, bkBooked, unsoldRows] = await Promise.all([
+    idsFor("airbnb").length
+      ? q(
+          `with now as (select listing_id, from_date, nights from calendar_snapshots where platform = 'airbnb' and snapshot_date = $2 and listing_id = any($1)),
+                b as (select c.listing_id, c.compared_to, (c.checkin + k)::date night
+                        from calendar_changes c, generate_series(0, c.nights - 1) k
+                       where c.platform = 'airbnb' and c.kind = 'booking' and c.listing_id = any($1) and c.snapshot_date > ($2::date - $3::int)),
+                still as (select b.* from b join now n using (listing_id)
+                           where b.night < n.from_date or substr(n.nights, (b.night - n.from_date) + 1, 1) = '0'),
+                p as (${pricesSql("airbnb", bookedFrom)})
+           select distinct on (s.listing_id, s.night) s.listing_id, s.night, p.pn
+             from still s join p on p.listing_id = s.listing_id and p.night = s.night and p.s <= s.compared_to and p.s >= s.compared_to - $4::int
+            order by s.listing_id, s.night, p.s desc`,
+          [idsFor("airbnb"), latest, BOOKED_DAYS, BOOKED_PRICE_AGE],
+        )
+      : Promise.resolve({ rows: [] as any[] }),
+    idsFor("booking").length
+      ? q(
+          `with o as (${pricesSql("booking", bookedFrom)}),
+                chk as (select snapshot_date s, checkin night from price_sample_dates where platform = 'booking' and snapshot_date >= $2),
+                present as (select distinct s, listing_id from o),
+                lastchk as (select distinct on (p.listing_id, c.night) p.listing_id, c.night, c.s
+                              from chk c join present p on p.s = c.s where c.night > c.s
+                             order by p.listing_id, c.night, c.s desc),
+                lastopen as (select distinct on (listing_id, night) listing_id, night, s, pn from o where night > s
+                              order by listing_id, night, s desc)
+           select lc.listing_id, lc.night, lo.pn from lastchk lc join lastopen lo using (listing_id, night)
+            where lo.s < lc.s and lo.s >= lc.s - $3::int`,
+          [idsFor("booking"), bookedFrom, BOOKED_PRICE_AGE],
+        )
+      : Promise.resolve({ rows: [] as any[] }),
+    q(
+      `select distinct on (platform, listing_id, night) platform, listing_id, night, pn from (
+         select 'airbnb' platform, * from (${pricesSql("airbnb", bookedFrom)}) a
+         union all
+         select 'booking', * from (${pricesSql("booking", bookedFrom)}) b
+       ) x where night < $2 and night - s between 1 and 2
+       order by platform, listing_id, night, s desc`,
+      [allKeys.map((k) => byKey.get(k)!.id), start],
+    ),
+  ]);
   const align = (row: { from_date: unknown; nights: string } | undefined) => {
     if (!row) return "";
     const off = dayIndex(asDate(row.from_date), start);
@@ -225,6 +282,24 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
     if (!latestFor.has(key)) latestFor.set(key, new Map());
     latestFor.get(key)!.set(d, perNight);
   }
+  const nightsBy = (rows: any[], platformOf: (r: any) => string) => {
+    const out = new Map<string, { day: number; price: number }[]>();
+    for (const r of rows) {
+      const key = keyOf(platformOf(r), r.listing_id);
+      if (!byKey.has(key)) continue;
+      if (!out.has(key)) out.set(key, []);
+      out.get(key)!.push({ day: dayIndex(start, asDate(r.night)), price: toAirbnb(platformOf(r), Number(r.pn)) });
+    }
+    return out;
+  };
+  const bookedBy = new Map([...nightsBy(abBooked.rows, () => "airbnb"), ...nightsBy(bkBooked.rows, () => "booking")]);
+  const unsoldBy = nightsBy(unsoldRows.rows, (r) => r.platform);
+  // A night seen open close in that then sold last-minute counts as booked, not unsold.
+  for (const [key, us] of unsoldBy) {
+    const sold = new Set((bookedBy.get(key) ?? []).map((b) => b.day));
+    unsoldBy.set(key, us.filter((u) => !sold.has(u.day)));
+  }
+
   const med = (xs: number[]) => {
     const s = [...xs].sort((a, b) => a - b);
     return s.length ? s[s.length >> 1] : 0;
@@ -244,6 +319,8 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
           : l.platform === "booking" && bkPrev
             ? bookingNights(bkBefore, l.id)
             : undefined,
+      booked: bookedBy.get(key) ?? [],
+      unsold: unsoldBy.get(key) ?? [],
     };
   };
 
@@ -254,6 +331,7 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
     latestSnapshot: latest,
     pace: prev ?? null,
     directRatio,
+    bookedNights: compIds.reduce((n, k) => n + (bookedBy.get(k)?.length ?? 0), 0),
   };
 }
 
