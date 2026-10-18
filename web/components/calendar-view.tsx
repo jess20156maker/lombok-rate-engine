@@ -6,13 +6,13 @@ import type { Reservation, Villa } from "@/lib/villa";
 import { fmt } from "@/lib/money";
 import { TooltipProvider, tipProps, useTooltip } from "./explore/tooltip";
 
-// Categorical colours in fixed order; blocks are neutral, not a series.
+// Categorical colours in fixed order; blocks get their own purple so they stand out.
 const SOURCES: Record<string, { label: string; color: string }> = {
   airbnb: { label: "Airbnb", color: "var(--airbnb)" },
   booking: { label: "Booking.com", color: "var(--booking)" },
   direct: { label: "Direct", color: "var(--series-3)" },
   manual: { label: "Booked", color: "var(--series-4)" },
-  block: { label: "Blocked", color: "var(--faint)" },
+  block: { label: "Blocked", color: "var(--own-block)" },
 };
 const src = (s: string) => SOURCES[s] ?? { label: s, color: "var(--faint)" };
 
@@ -52,7 +52,7 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
 
   const months = useMemo(() => {
     const out: { key: string; label: string; lead: number; days: string[] }[] = [];
-    for (let i = 0; i < 365; i++) {
+    for (let i = 0; i < 730; i++) { // two years, as priced (PRICING_DAYS in src/pricing/load.ts)
       const d = new Date(Date.parse(villa.today) + i * DAY).toISOString().slice(0, 10);
       const key = d.slice(0, 7);
       if (out.at(-1)?.key !== key)
@@ -184,7 +184,7 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
         </section>
 
         <div className="grid content-start gap-6">
-          <AddForm villa={villa} run={run} />
+          <AddForm villa={villa} run={run} pending={pending} msg={msg} />
         </div>
       </div>
 
@@ -229,7 +229,17 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
   );
 }
 
-function AddForm({ villa, run }: { villa: Villa; run: (fn: () => Promise<unknown>, ok: (r: any) => string) => void }) {
+function AddForm({
+  villa,
+  run,
+  pending,
+  msg,
+}: {
+  villa: Villa;
+  run: (fn: () => Promise<unknown>, ok: (r: any) => string) => void;
+  pending: boolean;
+  msg: string | null;
+}) {
   const [kind, setKind] = useState<"direct" | "block">("direct");
   const [checkin, setCheckin] = useState("");
   const [checkout, setCheckout] = useState("");
@@ -267,7 +277,14 @@ function AddForm({ villa, run }: { villa: Villa; run: (fn: () => Promise<unknown
                 total: total.trim() ? Number(total) * villa.audRate : null,
                 notes,
               }),
-            () => (kind === "block" ? "Dates blocked everywhere." : "Booking saved and dates closed everywhere."),
+            () => {
+              setCheckin("");
+              setCheckout("");
+              setGuest("");
+              setTotal("");
+              setNotes("");
+              return kind === "block" ? "Dates blocked everywhere." : "Booking saved and dates closed everywhere.";
+            },
           );
         }}
       >
@@ -288,7 +305,10 @@ function AddForm({ villa, run }: { villa: Villa; run: (fn: () => Promise<unknown
           </>
         )}
         <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={kind === "block" ? "Reason, e.g. maintenance" : "Notes (optional)"} className={input} />
-        <button className="rounded-md bg-accent py-2 text-sm font-medium text-white dark:text-black">{kind === "block" ? "Block these dates" : "Save booking"}</button>
+        <button disabled={pending} className="rounded-md bg-accent py-2 text-sm font-medium text-white disabled:opacity-50 dark:text-black">
+          {pending ? "Saving and re-pricing… (a few seconds)" : kind === "block" ? "Block these dates" : "Save booking"}
+        </button>
+        {msg && !pending && <p className="text-xs text-muted">{msg}</p>}
       </form>
     </section>
   );

@@ -64,6 +64,9 @@ one-word name plus same bedrooms, or within 25 m with same bedrooms. Results in 
   `src/pricing/run.ts` into `price_recommendations` (+ `price_history`). Runs nightly in `npm run finish` and on
   every change from the website. The nightly run moves each night at most 10% a day beyond 14 days out (`MAX_DAILY_MOVE`);
   website changes apply in full. Overrides in `rate_overrides` win; min/max clamp otherwise.
+- Horizon: two years (`PRICING_DAYS` = 730 in `load.ts`). Comparable villas publish prices ~6 months and calendars ~12
+  months ahead; beyond that a night follows the same week a year earlier, and seasons in `db/events.json` repeat yearly.
+  Holidays still need adding by hand each year (2028 lunar dates are estimates).
 - Booked-price signal (engine step 2b, `bookedSignal`): `load.ts` gives each comp its booked nights at the last price
   seen while still open (Airbnb: `calendar_changes` bookings still closed now; Booking.com: nights that dropped out of a
   full check after being priced; prices on Airbnb's footing) and past nights still open 1–2 days out (unsold). Booked

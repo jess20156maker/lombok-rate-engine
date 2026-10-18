@@ -870,5 +870,91 @@
     "why": "New Year's Eve is one of the busiest, highest-priced nights of the year across Lombok.",
     "confidence": "confirmed",
     "source": "https://www.setneg.go.id/baca/index/inilah_skb_3_menteri_libur_nasional_dan_cuti_bersama_2027"
+  },
+  {
+    "name": "New Year 2028",
+    "category": "holiday",
+    "start": "2028-01-01",
+    "end": "2028-01-02",
+    "markets": [
+      "ID",
+      "AU",
+      "SG",
+      "EU",
+      "GLOBAL"
+    ],
+    "impact": "high",
+    "why": "The New Year weekend stays one of the busiest, highest-priced times of the year across Lombok.",
+    "confidence": "confirmed",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028"
+  },
+  {
+    "name": "Chinese New Year (Imlek) 2028",
+    "category": "holiday",
+    "start": "2028-01-26",
+    "end": "2028-01-28",
+    "markets": [
+      "ID",
+      "SG"
+    ],
+    "impact": "medium",
+    "why": "A public holiday in Indonesia and a travel peak for Singapore and Chinese-Indonesian families.",
+    "confidence": "confirmed",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028"
+  },
+  {
+    "name": "Ramadan 2028",
+    "category": "holiday",
+    "start": "2028-01-28",
+    "end": "2028-02-25",
+    "markets": [
+      "ID"
+    ],
+    "impact": "low",
+    "why": "Domestic leisure travel drops during the fasting month and some local warungs keep shorter hours.",
+    "confidence": "estimated",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028",
+    "effect": "down"
+  },
+  {
+    "name": "Idul Fitri / Lebaran 2028 collective leave",
+    "category": "holiday",
+    "start": "2028-02-24",
+    "end": "2028-03-02",
+    "markets": [
+      "ID"
+    ],
+    "impact": "high",
+    "why": "Indonesia's biggest holiday: collective leave sends domestic travellers to Lombok and prices peak. Dates estimated until the government confirms cuti bersama.",
+    "confidence": "estimated",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028"
+  },
+  {
+    "name": "Easter long weekend 2028",
+    "category": "holiday",
+    "start": "2028-04-14",
+    "end": "2028-04-17",
+    "markets": [
+      "AU",
+      "EU",
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "Good Friday is a holiday in Indonesia and Australians travel over the long weekend.",
+    "confidence": "confirmed",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028"
+  },
+  {
+    "name": "Idul Adha 2028",
+    "category": "holiday",
+    "start": "2028-05-04",
+    "end": "2028-05-07",
+    "markets": [
+      "ID"
+    ],
+    "impact": "medium",
+    "why": "A national holiday weekend that brings domestic visitors to the south coast. Dates estimated.",
+    "confidence": "estimated",
+    "source": "https://www.timeanddate.com/holidays/indonesia/2028"
   }
 ]

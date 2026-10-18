@@ -220,15 +220,34 @@ export function priceNights(input: EngineInput): NightPrice[] {
       byMonth.set(m, [...(byMonth.get(m) ?? []), f]);
     }
   });
-  const filled = factor.map((f, d) => {
-    if (f != null) return { f, how: "observed" as const };
-    for (let k = 1; k <= 3; k++) {
-      const near = factor[d - k] ?? factor[d + k];
-      if (near != null) return { f: near, how: "nearby" as const };
+  type Filled = { f: number; how: "observed" | "nearby" | "month" | "lastYear" | "none" };
+  const filled: Filled[] = [];
+  for (let d = 0; d < days; d++) {
+    const f = factor[d];
+    if (f != null) {
+      filled.push({ f, how: "observed" });
+      continue;
+    }
+    let near: number | null = null;
+    for (let k = 1; k <= 3 && near == null; k++) near = factor[d - k] ?? factor[d + k] ?? null;
+    if (near != null) {
+      filled.push({ f: near, how: "nearby" });
+      continue;
     }
     const m = median(byMonth.get(dateOf(input.start, d).slice(0, 7)) ?? []);
-    return { f: m ?? 1, how: m != null ? ("month" as const) : ("none" as const) };
-  });
+    // Beyond what villas have published (about a year): the same week a year earlier.
+    const ago = filled[d - 364];
+    if (m == null && ago && ago.how !== "none" && ago.how !== "lastYear") filled.push({ f: ago.f, how: "lastYear" });
+    else filled.push({ f: m ?? 1, how: m != null ? "month" : "none" });
+  }
+
+  // Seasons come round every year: repeat each one a year and two years on, so
+  // nights past the researched events calendar still get their season.
+  const shift = (d: string, years: number) => `${Number(d.slice(0, 4)) + years}${d.slice(4)}`;
+  const seasons = input.events
+    .filter((e) => e.category === "season")
+    .flatMap((e) => [1, 2].map((k) => ({ ...e, start: shift(e.start, k), end: shift(e.end, k) })));
+  const events = [...input.events, ...seasons];
 
   const sold = bookedSignal(comps, wider, days);
 
@@ -282,7 +301,9 @@ export function priceNights(input: EngineInput): NightPrice[] {
             ? `Comparable villas charge ${pct(fc)} vs their usual rate this night`
             : how === "nearby"
               ? `Nearby nights run ${pct(fc)} vs usual (this night not priced yet)`
-              : `This month typically runs ${pct(fc)} vs usual`,
+              : how === "lastYear"
+                ? `Villas don't take bookings this far ahead yet, so this follows the same week a year earlier: ${pct(fc)} vs usual`
+                : `This month typically runs ${pct(fc)} vs usual`,
         effect: fc,
       });
     }
@@ -296,7 +317,7 @@ export function priceNights(input: EngineInput): NightPrice[] {
 
     // Seasons fill in only where there's no observed market price for the night yet.
     if (how === "month" || how === "none") {
-      for (const e of input.events) {
+      for (const e of events) {
         if (e.category !== "season" || e.start > date || e.end < date) continue;
         const m = e.effect === "down" ? 0.92 : e.impact === "high" ? 1.08 : 1;
         if (m !== 1) {

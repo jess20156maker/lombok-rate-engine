@@ -7,6 +7,8 @@ import type { CompInput, EngineInput, EventInput } from "./engine";
 const DAY = 86_400_000;
 const dayIndex = (from: string, date: string) => Math.round((Date.parse(date) - Date.parse(from)) / DAY);
 const HISTORY_DAYS = 30; // how far back "typical price" looks
+/** How far ahead the villa is priced: two years. Comparable villas publish about one. */
+export const PRICING_DAYS = 730;
 const BOOKED_DAYS = 120; // how far back booked and unsold nights count
 const BOOKED_PRICE_AGE = 14; // a pre-booking price older than this is too stale to use
 
@@ -45,7 +47,7 @@ function km(aLat: number, aLng: number, bLat: number, bLng: number) {
 export type MarketInput = Awaited<ReturnType<typeof loadMarketInput>>;
 
 /** Comparable villas, calendars and prices: changes once a night, so callers may cache it. */
-export async function loadMarketInput(q: Query, p: Property, start: string, days = 365) {
+export async function loadMarketInput(q: Query, p: Property, start: string, days = PRICING_DAYS) {
   const { rows: snaps } = await q(
     "select distinct snapshot_date::text d from calendar_snapshots where platform = 'airbnb' order by 1 desc limit 10",
   );
@@ -335,7 +337,7 @@ export async function loadMarketInput(q: Query, p: Property, start: string, days
   };
 }
 
-export async function loadEngineInput(q: Query, p: Property, start: string, events: EventInput[], market?: MarketInput, days = 365) {
+export async function loadEngineInput(q: Query, p: Property, start: string, events: EventInput[], market?: MarketInput, days = PRICING_DAYS) {
   const m = market ?? (await loadMarketInput(q, p, start, days));
 
   // The villa's own bookings and blocks.

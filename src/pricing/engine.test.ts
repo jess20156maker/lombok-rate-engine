@@ -166,3 +166,21 @@ test("min/max and overrides still win over the booked-price signal", () => {
   assert.equal(out[20].price, 5_000_000);
   assert.equal(out[21].price, 9_000_000);
 });
+
+test("nights beyond what villas have published follow the same week a year earlier", () => {
+  // Market prices only for the first 40 nights; night 10 runs +30%.
+  const comps = ["a", "b", "c"].map((id) => comp(id, 5_000_000, "1".repeat(40), [[10, 6_500_000]]));
+  const out = priceNights(base({ comps, days: 730 }));
+  assert.equal(out.length, 730);
+  const dateEffect = (n: (typeof out)[number]) => n.reasons.find((r) => r.kind === "date")?.effect;
+  assert.equal(dateEffect(out[374]), dateEffect(out[10])); // 364 days on: same weekday, same lift
+  assert.match(out[374].reasons.find((r) => r.kind === "date")!.label, /same week a year earlier: \+30%/);
+});
+
+test("seasons repeat each year beyond the researched events calendar", () => {
+  const events = [{ name: "Wet season", category: "season", start: "2026-11-01", end: "2027-03-31", impact: "low" as const, why: "Rain.", effect: "down" as const }];
+  const out = priceNights(base({ events, days: 500, comps: [comp("a", 5e6, ""), comp("b", 5e6, ""), comp("c", 5e6, "")] }));
+  const wet = (d: number) => out[d].reasons.some((r) => r.kind === "event" && r.label.startsWith("Wet season"));
+  assert.ok(wet(30) && wet(400)); // Dec 2026 and Dec 2027
+  assert.ok(!wet(200)); // May 2027
+});

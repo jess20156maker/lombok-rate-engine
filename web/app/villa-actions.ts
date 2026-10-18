@@ -109,9 +109,11 @@ export async function addReservation(
   r: { kind: "direct" | "block"; checkin: string; checkout: string; guestName: string; total: number | null; notes: string },
 ) {
   check(ID.test(id) && DATE.test(r.checkin) && DATE.test(r.checkout) && r.checkout > r.checkin, "Check-out must be after check-in");
+  // A second click on the same dates adds nothing (it would show as a double booking).
   await pool.query(
     `insert into reservations (property_id, source, checkin, checkout, guest_name, total, notes)
-     values ($1, $2, $3, $4, $5, $6, $7)`,
+     select $1, $2, $3, $4, $5, $6, $7
+      where not exists (select 1 from reservations where property_id = $1 and source = $2 and checkin = $3 and checkout = $4 and status = 'confirmed')`,
     [id, r.kind, r.checkin, r.checkout, r.kind === "block" ? null : r.guestName.slice(0, 80) || null, r.total, r.notes.slice(0, 500) || null],
   );
   await repriceProperty(id);

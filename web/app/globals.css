@@ -34,6 +34,7 @@
   /* Platform brand colours (validated as a pair for colour-blind separation). */
   --airbnb: #ff385c;
   --booking: #006ce4;
+  --own-block: #8e24aa; /* dates you closed: purple, apart from the channel colours */
   --tooltip-bg: #0b0b0b;
   --tooltip-ink: #ffffff;
   /* Kept for the older pages. */
@@ -76,6 +77,7 @@
     --series-4: #c98500;
     --airbnb: #f0406a;
     --booking: #2f84f0;
+    --own-block: #b04cc4;
     --tooltip-bg: #ffffff;
     --tooltip-ink: #0b0b0b;
     --open: #16263a;

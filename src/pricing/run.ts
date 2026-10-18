@@ -61,7 +61,7 @@ export async function priceProperty(
       reasons: JSON.stringify(n.reasons),
       computed_at: computedAt,
     })),
-    400, // one round trip for the whole year
+    800, // one round trip for the whole horizon
   );
   await upsertWith(q, "price_history", ["property_id", "run_date"], [
     { property_id: p.id, run_date: start, from_date: start, prices: nights.map((n) => n.price) },
