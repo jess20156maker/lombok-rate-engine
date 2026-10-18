@@ -38,6 +38,7 @@ export type PropertyRow = {
 export type Recommendation = {
   date: string;
   price: number;
+  suggested: number | null; // the engine's price, even where you set your own
   minStay: number;
   marketPrice: number | null;
   marketOcc: number | null;
@@ -75,7 +76,7 @@ export async function loadVilla(id?: string) {
   const today = lombokToday();
   const [recs, res, ovs, fx] = await Promise.all([
     pool.query(
-      `select date::text, price::float8 price, min_stay, market_price::float8 market_price, market_occ, comp_count, reasons, computed_at
+      `select date::text, price::float8 price, suggested_price::float8 suggested, min_stay, market_price::float8 market_price, market_occ, comp_count, reasons, computed_at
          from price_recommendations where property_id = $1 and date >= $2 order by date`,
       [p.id, today],
     ),
@@ -107,6 +108,7 @@ export async function loadVilla(id?: string) {
       (r): Recommendation => ({
         date: r.date,
         price: r.price,
+        suggested: r.suggested,
         minStay: r.min_stay,
         marketPrice: r.market_price,
         marketOcc: r.market_occ,

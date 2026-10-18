@@ -220,6 +220,7 @@ create table if not exists price_recommendations (
   primary key (property_id, date)
 );
 alter table price_recommendations enable row level security;
+alter table price_recommendations add column if not exists suggested_price bigint; -- the engine's price, even where you set your own
 
 -- One compact row per property per engine run, so you can see how prices moved.
 create table if not exists price_history (

@@ -71,6 +71,7 @@ export type NightPrice = {
   day: number;
   date: string;
   price: number;
+  suggested: number; // what the engine would charge without your own price for the night
   minStay: number;
   marketPrice: number | null; // median observed comp price that night
   marketOcc: number | null;
@@ -409,6 +410,8 @@ export function priceNights(input: EngineInput): NightPrice[] {
     }
 
     // 8. Your rules
+    // Rounded, then kept strictly within your limits (rounding mustn't cross them).
+    const suggested = clamp(roundPrice(price), input.minRate, input.maxRate);
     const o = input.overrides.get(d);
     if (o?.price != null) {
       price = o.price;
@@ -432,8 +435,8 @@ export function priceNights(input: EngineInput): NightPrice[] {
     return {
       day: d,
       date,
-      // Your own price stays exact; otherwise round, then keep strictly within your limits.
-      price: o?.price != null ? Math.round(price) : clamp(roundPrice(price), input.minRate, input.maxRate),
+      price: o?.price != null ? Math.round(price) : suggested, // your own price stays exact
+      suggested,
       minStay: Math.max(1, minStay),
       marketPrice: median(observed),
       marketOcc: occ[d],

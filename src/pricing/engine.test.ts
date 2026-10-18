@@ -184,3 +184,10 @@ test("seasons repeat each year beyond the researched events calendar", () => {
   assert.ok(wet(30) && wet(400)); // Dec 2026 and Dec 2027
   assert.ok(!wet(200)); // May 2027
 });
+
+test("a night with your own price still carries the suggested price", () => {
+  const overrides = new Map([[20, { price: 3_600_000, minStay: null, note: null }]]);
+  const n = priceNights(base({ overrides }))[20];
+  assert.equal(n.price, 3_600_000);
+  assert.equal(n.suggested, 5_000_000);
+});

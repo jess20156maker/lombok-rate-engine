@@ -38,6 +38,7 @@ export async function priceProperty(
       if (n.price >= lo && n.price <= hi) continue;
       const target = n.price;
       n.price = Math.min(hi, Math.max(lo, target));
+      n.suggested = n.price;
       n.reasons.push({
         kind: "limit",
         label: `Moving gradually toward Rp ${(target / 1e6).toFixed(2)}m: prices change at most ${MAX_DAILY_MOVE * 100}% a day this far ahead`,
@@ -54,6 +55,7 @@ export async function priceProperty(
       property_id: p.id,
       date: n.date,
       price: n.price,
+      suggested_price: n.suggested,
       min_stay: n.minStay,
       market_price: n.marketPrice == null ? null : Math.round(n.marketPrice),
       market_occ: n.marketOcc,

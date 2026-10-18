@@ -214,6 +214,25 @@ function NightPanel({
         {money.idr(rec.price)} a night · minimum {rec.minStay} night{rec.minStay === 1 ? "" : "s"}
       </div>
       {bookedBy && <div className="mt-2 rounded bg-line px-2 py-1 text-xs">Already booked ({SOURCE_LABEL[bookedBy] ?? bookedBy})</div>}
+      {override?.price != null && rec.suggested != null && (
+        <div className="mt-3 grid grid-cols-2 gap-3 rounded-md border border-line p-3 text-xs">
+          <div>
+            <div className="text-muted">Your price</div>
+            <div className="text-base font-semibold">{money.aud(rec.price)}</div>
+            <div className="text-muted">{money.idr(rec.price)}</div>
+          </div>
+          <div>
+            <div className="text-muted">Suggested from the market</div>
+            <div className="text-base font-semibold">{money.aud(rec.suggested)}</div>
+            <div className="text-muted">{money.idr(rec.suggested)}</div>
+          </div>
+          <div className="col-span-2 font-medium" style={{ color: rec.price >= rec.suggested ? "var(--up)" : "var(--down)" }}>
+            {Math.abs(rec.price - rec.suggested) < 0.01 * rec.suggested
+              ? "Same as the suggestion"
+              : `Yours is ${Math.round((Math.abs(rec.price - rec.suggested) / rec.suggested) * 100)}% ${rec.price > rec.suggested ? "above" : "below"} the suggestion (${money.aud(Math.abs(rec.price - rec.suggested))} a night)`}
+          </div>
+        </div>
+      )}
       <div className="mt-3 text-xs text-muted">
         Similar villas this night: {rec.marketPrice != null ? `${money.aud(rec.marketPrice)} median` : "no prices yet"}
         {rec.marketOcc != null ? ` · ${Math.round(rec.marketOcc * 100)}% booked` : ""}
