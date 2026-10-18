@@ -65,6 +65,13 @@ test("overrides win and limits hold", () => {
   assert.equal(out[21].price, 4_000_000); // otherwise capped at max
 });
 
+test("rounding never takes a price past your limits, and your own price stays exact", () => {
+  const out = priceNights(base({ maxRate: 4_528_200, minRate: 4_510_000, overrides: new Map([[21, { price: 8_782_900, minStay: null, note: null }]]) }));
+  assert.equal(out[20].price, 4_528_200); // Rp 5m capped: not rounded up to 4.55m
+  assert.equal(out[2].price, 4_510_000); // last-minute cut held at the floor: not rounded down to 4.5m
+  assert.equal(out[21].price, 8_782_900);
+});
+
 test("last-minute open nights are discounted with a short minimum stay", () => {
   const n = priceNights(base())[2];
   assert.equal(n.price, 4_250_000);

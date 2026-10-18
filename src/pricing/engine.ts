@@ -411,7 +411,8 @@ export function priceNights(input: EngineInput): NightPrice[] {
     return {
       day: d,
       date,
-      price: roundPrice(price),
+      // Your own price stays exact; otherwise round, then keep strictly within your limits.
+      price: o?.price != null ? Math.round(price) : clamp(roundPrice(price), input.minRate, input.maxRate),
       minStay: Math.max(1, minStay),
       marketPrice: median(observed),
       marketOcc: occ[d],

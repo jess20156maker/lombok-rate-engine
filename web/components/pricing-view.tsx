@@ -176,7 +176,7 @@ function Pricing({ villa }: { villa: Villa }) {
         </section>
 
         <div className="grid content-start gap-6 lg:sticky lg:top-4">
-          {sel && <NightPanel villa={villa} rec={sel} money={money} override={overrideDates.get(sel.date) ?? null} bookedBy={booked.get(sel.date) ?? null} />}
+          {sel && <NightPanel key={sel.date} villa={villa} rec={sel} money={money} override={overrideDates.get(sel.date) ?? null} bookedBy={booked.get(sel.date) ?? null} />}
         </div>
       </div>
 
@@ -295,13 +295,14 @@ function NightPanel({
 function Settings({ villa, money }: { villa: Villa; money: { aud: (n: number | null) => string; idr: (n: number | null) => string } }) {
   const p = villa.property;
   const rate = villa.audRate;
+  const initialAud = { min: String(Math.round(p.min_rate / rate)), max: String(Math.round(p.max_rate / rate)) };
   const [s, setS] = useState({
     name: p.name,
     area: p.area,
     bedrooms: String(p.bedrooms),
     position: p.position,
-    minAud: String(Math.round(p.min_rate / rate)),
-    maxAud: String(Math.round(p.max_rate / rate)),
+    minAud: initialAud.min,
+    maxAud: initialAud.max,
     baseMinStay: String(p.base_min_stay),
     reviews: String(p.settings?.reviews ?? 0),
     confirmed: !p.draft,
@@ -325,8 +326,9 @@ function Settings({ villa, money }: { villa: Villa; money: { aud: (n: number | n
                 area: s.area,
                 bedrooms: Number(s.bedrooms),
                 position: s.position,
-                minRate: Number(s.minAud) * rate,
-                maxRate: Number(s.maxAud) * rate,
+                // Unchanged limits keep their exact rupiah (A$ → Rp would drift them each save).
+                minRate: s.minAud === initialAud.min ? Number(p.min_rate) : Number(s.minAud) * rate,
+                maxRate: s.maxAud === initialAud.max ? Number(p.max_rate) : Number(s.maxAud) * rate,
                 baseMinStay: Number(s.baseMinStay),
                 reviews: Number(s.reviews),
                 confirmed: s.confirmed,
