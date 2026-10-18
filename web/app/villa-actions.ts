@@ -120,6 +120,28 @@ export async function addReservation(
   refresh();
 }
 
+/** Change the dates (and details) of your own entry; channel bookings are changed on the channel. */
+export async function updateReservation(
+  id: string,
+  reservationId: string,
+  r: { checkin: string; checkout: string; guestName: string; total: number | null; notes: string },
+) {
+  check(ID.test(id) && /^[0-9a-f-]{36}$/.test(reservationId), "Bad reservation");
+  check(DATE.test(r.checkin) && DATE.test(r.checkout) && r.checkout > r.checkin, "Check-out must be after check-in");
+  check(r.total == null || (r.total >= 0 && r.total < 1e12), "Bad total");
+  const { rowCount } = await pool.query(
+    `update reservations set checkin = $3, checkout = $4,
+            guest_name = case when source = 'block' then null else $5::text end,
+            total = case when source = 'block' then null else $6::bigint end,
+            notes = $7, updated_at = now()
+      where id = $2 and property_id = $1 and status = 'confirmed' and source in ('direct', 'manual', 'block')`,
+    [id, reservationId, r.checkin, r.checkout, r.guestName.slice(0, 80) || null, r.total == null ? null : Math.round(r.total), r.notes.slice(0, 500) || null],
+  );
+  check(rowCount === 1, "Only direct bookings and blocks can be changed here; change Airbnb and Booking.com stays on those sites");
+  await repriceProperty(id);
+  refresh();
+}
+
 /** Only your own entries can be cancelled here; channel bookings are cancelled on the channel. */
 export async function cancelReservation(id: string, reservationId: string) {
   check(ID.test(id) && /^[0-9a-f-]{36}$/.test(reservationId), "Bad reservation");

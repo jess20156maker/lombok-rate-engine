@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { addReservation, cancelReservation, saveChannelLinks, syncCalendarsNow } from "@/app/villa-actions";
+import { addReservation, cancelReservation, saveChannelLinks, syncCalendarsNow, updateReservation } from "@/app/villa-actions";
 import type { Reservation, Villa } from "@/lib/villa";
 import { fmt } from "@/lib/money";
 import { TooltipProvider, tipProps, useTooltip } from "./explore/tooltip";
@@ -34,6 +34,7 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
   const p = villa.property;
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const money = (n: number | null) =>
     n == null ? "–" : `${fmt(n, { currency: "AUD", audRate: villa.audRate, rateDate: "" })} · ${fmt(n, { currency: "IDR", audRate: villa.audRate, rateDate: "" })}`;
 
@@ -208,15 +209,43 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
                   {[r.guestName, r.total != null ? money(r.total) : null, r.notes].filter(Boolean).join(" · ")}
                 </span>
                 {conflictIds.has(r.id) && <span className="text-xs font-semibold text-[#d03b3b]">double booking</span>}
-                {["direct", "manual", "block"].includes(r.source) && (
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => confirm("Cancel this and free the dates on every channel?") && run(() => cancelReservation(p.id, r.id), () => "Cancelled: the dates are free again everywhere within about 20 minutes.")}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    Cancel
-                  </button>
+                {["direct", "manual", "block"].includes(r.source) ? (
+                  <>
+                    <button type="button" disabled={pending} onClick={() => {
+                        setMsg(null);
+                        setEditing(editing === r.id ? null : r.id);
+                      }} className="text-xs text-accent hover:underline">
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => confirm("Cancel this and free the dates on every channel?") && run(() => cancelReservation(p.id, r.id), () => "Cancelled: the dates are free again everywhere within about 20 minutes.")}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-xs text-faint">Change on {src(r.source).label}</span>
+                )}
+                {editing === r.id && (
+                  <EditStay
+                    villa={villa}
+                    r={r}
+                    pending={pending}
+                    msg={msg}
+                    onClose={() => setEditing(null)}
+                    save={(changes) =>
+                      run(
+                        () => updateReservation(p.id, r.id, changes),
+                        () => {
+                          setEditing(null);
+                          return "Dates changed everywhere: Airbnb and Booking.com pick it up when they next check.";
+                        },
+                      )
+                    }
+                  />
                 )}
               </li>
             ))}
@@ -226,6 +255,66 @@ function Cal({ villa, origin }: { villa: Villa; origin: string }) {
 
       <Connect villa={villa} origin={origin} run={run} syncSummary={syncSummary} pending={pending} />
     </div>
+  );
+}
+
+function EditStay({
+  villa,
+  r,
+  pending,
+  msg,
+  onClose,
+  save,
+}: {
+  villa: Villa;
+  r: Reservation;
+  pending: boolean;
+  msg: string | null;
+  onClose: () => void;
+  save: (changes: { checkin: string; checkout: string; guestName: string; total: number | null; notes: string }) => void;
+}) {
+  const block = r.source === "block";
+  const [checkin, setCheckin] = useState(r.checkin);
+  const [checkout, setCheckout] = useState(r.checkout);
+  const [guest, setGuest] = useState(r.guestName ?? "");
+  const [total, setTotal] = useState(r.total != null ? String(Math.round(r.total / villa.audRate)) : "");
+  const [notes, setNotes] = useState(r.notes ?? "");
+  const input = "rounded border border-line bg-bg px-2 py-1.5 text-sm text-ink";
+  return (
+    <form
+      className="grid w-full gap-2 rounded-md border border-line p-3 sm:grid-cols-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        // An unchanged total keeps its exact rupiah.
+        const unchanged = r.total != null && total === String(Math.round(r.total / villa.audRate));
+        save({ checkin, checkout, guestName: guest, total: unchanged ? r.total : total.trim() ? Number(total) * villa.audRate : null, notes });
+      }}
+    >
+      <label className="grid gap-1 text-xs text-muted">
+        {block ? "From" : "Check-in"}
+        <input type="date" required value={checkin} onChange={(e) => setCheckin(e.target.value)} className={input} />
+      </label>
+      <label className="grid gap-1 text-xs text-muted">
+        {block ? "Until (morning)" : "Check-out"}
+        <input type="date" required value={checkout} min={checkin} onChange={(e) => setCheckout(e.target.value)} className={input} />
+      </label>
+      {!block && (
+        <>
+          <input value={guest} onChange={(e) => setGuest(e.target.value)} placeholder="Guest name" className={input} />
+          <input value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" placeholder="Total paid (A$), optional" className={input} />
+        </>
+      )}
+      <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={block ? "Reason, e.g. maintenance" : "Notes (optional)"} className={`${input} sm:col-span-2`} />
+      <div className="flex items-center gap-3 sm:col-span-2">
+        <button disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:text-black">
+          {pending ? "Saving and re-pricing…" : "Save new dates"}
+        </button>
+        <button type="button" onClick={onClose} className="text-xs text-muted hover:underline">
+          Never mind
+        </button>
+        {msg && !pending && <span className="text-xs text-[#d03b3b]">{msg}</span>}
+      </div>
+    </form>
   );
 }
 
