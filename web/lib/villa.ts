@@ -56,6 +56,7 @@ export type Reservation = {
   status: string;
   total: number | null;
   notes: string | null;
+  listed: (number | null)[] | null; // per night from check-in: the suggested price on the day it was booked
 };
 
 export type Override = { date: string; price: number | null; minStay: number | null; note: string | null };
@@ -81,8 +82,14 @@ export async function loadVilla(id?: string) {
       [p.id, today],
     ),
     pool.query(
-      `select id, source, checkin::text, checkout::text, guest_name, status, total::float8 total, notes
-         from reservations where property_id = $1 and checkout >= ($2::date - 60) order by checkin`,
+      `select r.id, r.source, r.checkin::text, r.checkout::text, r.guest_name, r.status, r.total::float8 total, r.notes, h.listed
+         from reservations r
+         -- What each night was priced at on the day it was booked (the latest run on or before then).
+         left join lateral (
+           select array(select h.prices[(d::date - h.from_date) + 1]::float8 from generate_series(r.checkin, r.checkout - 1, interval '1 day') d) listed
+             from price_history h where h.property_id = r.property_id and h.run_date <= r.created_at::date order by h.run_date desc limit 1
+         ) h on true
+        where r.property_id = $1 and r.checkout >= ($2::date - 60) order by r.checkin`,
       [p.id, today],
     ),
     pool.query("select date::text, price::float8 price, min_stay, note from rate_overrides where property_id = $1 and date >= $2", [p.id, today]),
@@ -97,6 +104,7 @@ export async function loadVilla(id?: string) {
     status: r.status,
     total: r.total,
     notes: r.notes,
+    listed: r.listed ?? null,
   }));
   const confirmed = reservations.filter((r) => r.status === "confirmed");
   return {

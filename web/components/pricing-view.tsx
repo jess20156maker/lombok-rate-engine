@@ -36,11 +36,19 @@ function Pricing({ villa }: { villa: Villa }) {
 
   const byDate = useMemo(() => new Map(villa.recommendations.map((r) => [r.date, r])), [villa.recommendations]);
   const overrideDates = useMemo(() => new Map(villa.overrides.map((o) => [o.date, o])), [villa.overrides]);
+  // Taken nights: who has them and, for stays, the rate: what was paid (direct
+  // bookings with a total) or else the suggested price on the day it was booked.
   const booked = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, Taken>();
     for (const r of villa.reservations) {
       if (r.status !== "confirmed") continue;
-      for (let t = Date.parse(r.checkin); t < Date.parse(r.checkout); t += 86_400_000) m.set(new Date(t).toISOString().slice(0, 10), r.source);
+      const nights = Math.round((Date.parse(r.checkout) - Date.parse(r.checkin)) / 86_400_000);
+      for (let k = 0; k < nights; k++) {
+        const date = new Date(Date.parse(r.checkin) + k * 86_400_000).toISOString().slice(0, 10);
+        const rate =
+          r.source === "block" ? null : r.total != null ? { price: r.total / nights, paid: true } : r.listed?.[k] != null ? { price: r.listed[k]!, paid: false } : null;
+        m.set(date, { source: r.source, rate });
+      }
     }
     return m;
   }, [villa.reservations]);
@@ -138,33 +146,46 @@ function Pricing({ villa }: { villa: Villa }) {
                     <div key={i} />
                   ))}
                   {m.days.map((r) => {
-                    const src = booked.get(r.date);
+                    const taken = booked.get(r.date);
+                    const src = taken?.source;
                     const ov = overrideDates.get(r.date);
+                    // Booked nights show their rate; blocked nights the suggestion.
+                    const shown = taken?.rate?.price ?? r.suggested ?? r.price;
                     return (
                       <button
                         key={r.date}
                         type="button"
-                        aria-label={`${r.date}: ${src ? "booked" : money.aud(r.price)}`}
+                        aria-label={`${r.date}: ${src ? `${src === "block" ? "blocked" : "booked"}, ${money.aud(shown)}` : money.aud(r.price)}`}
                         onClick={() => setSelected(r.date)}
                         {...tipProps(t, () => (
                           <div>
                             <div className="font-semibold">
-                              {money.aud(r.price)} · {money.idr(r.price)}
+                              {money.aud(src ? shown : r.price)} · {money.idr(src ? shown : r.price)}
                             </div>
                             <div className="opacity-80">
-                              {dayLabel(r.date)} · min {r.minStay} night{r.minStay === 1 ? "" : "s"}
-                              {src ? ` · booked (${SOURCE_LABEL[src] ?? src})` : ""}
+                              {dayLabel(r.date)} ·{" "}
+                              {!taken
+                                ? `min ${r.minStay} night${r.minStay === 1 ? "" : "s"}`
+                                : src === "block"
+                                  ? "blocked · suggested price"
+                                  : `booked (${SOURCE_LABEL[src!] ?? src}) · ${taken.rate?.paid ? "rate paid" : "suggested when booked"}`}
                             </div>
                           </div>
                         ))}
                         className="relative flex aspect-square flex-col items-center justify-center rounded-[3px] text-[8px] leading-tight transition-transform hover:z-10 hover:scale-125"
                         style={{
-                          ...(src ? { background: "var(--line)", color: "var(--faint)" } : shade(r.price)),
+                          // Taken nights: grey with a diagonal line through them.
+                          ...(src
+                            ? {
+                                background: "linear-gradient(to top right, transparent calc(50% - 0.6px), var(--faint) calc(50% - 0.6px), var(--faint) calc(50% + 0.6px), transparent calc(50% + 0.6px)), var(--line)",
+                                color: "var(--muted)",
+                              }
+                            : shade(r.price)),
                           boxShadow: selected === r.date ? "0 0 0 2px var(--panel), 0 0 0 4px var(--ink)" : undefined,
                         }}
                       >
                         <span className="opacity-70">{Number(r.date.slice(8))}</span>
-                        <span className="font-semibold">{src ? "booked" : money.aud(r.price).replace("A$", "")}</span>
+                        <span className="font-semibold">{money.aud(src ? shown : r.price).replace("A$", "")}</span>
                         {ov && <span className="absolute right-[1px] top-[1px] size-[4px] rounded-full bg-current" />}
                       </button>
                     );
@@ -176,7 +197,7 @@ function Pricing({ villa }: { villa: Villa }) {
         </section>
 
         <div className="grid content-start gap-6 lg:sticky lg:top-4">
-          {sel && <NightPanel key={sel.date} villa={villa} rec={sel} money={money} override={overrideDates.get(sel.date) ?? null} bookedBy={booked.get(sel.date) ?? null} />}
+          {sel && <NightPanel key={sel.date} villa={villa} rec={sel} money={money} override={overrideDates.get(sel.date) ?? null} taken={booked.get(sel.date) ?? null} />}
         </div>
       </div>
 
@@ -185,18 +206,20 @@ function Pricing({ villa }: { villa: Villa }) {
   );
 }
 
+type Taken = { source: string; rate: { price: number; paid: boolean } | null };
+
 function NightPanel({
   villa,
   rec,
   money,
   override,
-  bookedBy,
+  taken,
 }: {
   villa: Villa;
   rec: Recommendation;
   money: { aud: (n: number | null) => string; idr: (n: number | null) => string };
   override: { price: number | null; minStay: number | null; note: string | null } | null;
-  bookedBy: string | null;
+  taken: Taken | null;
 }) {
   const [pending, start] = useTransition();
   const [price, setPrice] = useState("");
@@ -213,7 +236,28 @@ function NightPanel({
       <div className="text-sm text-muted">
         {money.idr(rec.price)} a night · minimum {rec.minStay} night{rec.minStay === 1 ? "" : "s"}
       </div>
-      {bookedBy && <div className="mt-2 rounded bg-line px-2 py-1 text-xs">Already booked ({SOURCE_LABEL[bookedBy] ?? bookedBy})</div>}
+      {taken && (
+        <div className="mt-3 grid grid-cols-2 gap-3 rounded-md border border-line bg-line/40 p-3 text-xs">
+          {taken.source === "block" ? (
+            <div className="col-span-2 font-medium">Blocked: this is the suggested price if you open it again</div>
+          ) : (
+            <>
+              <div>
+                <div className="text-muted">
+                  Booked ({SOURCE_LABEL[taken.source] ?? taken.source}) {taken.rate?.paid ? "at" : "· suggested then"}
+                </div>
+                <div className="text-base font-semibold">{taken.rate ? money.aud(taken.rate.price) : "Not known"}</div>
+                <div className="text-muted">{taken.rate ? money.idr(taken.rate.price) : "The site doesn't share the price"}</div>
+              </div>
+              <div>
+                <div className="text-muted">Suggested now</div>
+                <div className="text-base font-semibold">{money.aud(rec.suggested ?? rec.price)}</div>
+                <div className="text-muted">{money.idr(rec.suggested ?? rec.price)}</div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {override?.price != null && rec.suggested != null && (
         <div className="mt-3 grid grid-cols-2 gap-3 rounded-md border border-line p-3 text-xs">
           <div>
