@@ -23,8 +23,8 @@ Git remote uses SSH host alias `github-personal` (key `~/.ssh/id_ed25519_persona
 **Airbnb** (`src/airbnb/client.ts`), plain HTTP:
 - Search: `/s/Lombok/homes` with a map box; results embedded as JSON (`data-deferred-state-0`). 15 pages max,
   so discovery splits the market into tiles (`src/jobs/discover.ts`, tiles in `market_tiles`).
-- Calendar: `PdpAvailabilityCalendar` persisted query, 12 months per call. If the hash stops working, open any
-  listing in a browser, scroll to the calendar, and copy the new hash from the network tab.
+- Calendar: `PdpAvailabilityCalendarV2ExcludedQuery` persisted query, 12 months per call. If Airbnb retires the hash
+  (HTTP 400), the client finds the new one in the site's scripts and logs it; see the note at the top of the file.
 - Bookings are inferred from day-to-day calendar diffs (`src/analysis/changes.ts`).
 - Watchlist prices (`src/jobs/watch.ts`): a dated search of a ~330 m box around each starred villa.
   (The PDP BookIt query returns ValidationError for open dates without a browser session; the box search works.)
