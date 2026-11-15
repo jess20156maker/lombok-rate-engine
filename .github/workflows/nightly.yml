@@ -44,9 +44,6 @@ jobs:
       - run: npm run check-env
       # The runner starts empty: pull listings, tiles and yesterday's calendars from Supabase.
       - run: npm run hydrate
-      # A browser, only used to find Airbnb's new calendar ID when the old one stops working.
-      - run: npx playwright install --with-deps chromium-headless-shell
-        continue-on-error: true
       # Prices are handled by the parallel jobs below.
       - run: npm run daily -- --skip-prices
       # Competitor websites (src/web/sites.ts): a few page loads.

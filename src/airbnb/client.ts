@@ -3,17 +3,19 @@
 // - Search: the /s/ page embeds its results as JSON (data-deferred-state-0).
 // - Calendar: the PdpAvailabilityCalendar GraphQL query, 12 months per call.
 //
-// When Airbnb ships a new site build, CALENDAR_HASH can stop working (HTTP 400).
-// calendar() then finds the new one by itself (discoverCalendarHashes) and logs
-// it; copy it into CALENDAR_HASH so later runs skip the search. By hand: open a
-// listing page, scroll to the calendar, and read the PdpAvailabilityCalendar/<hash>
-// request in the browser's network tab.
+// When Airbnb ships a new site build, CALENDAR_HASH can stop working (HTTP 400,
+// "deprecated_web_operation"). calendar() then looks for the new hash in the
+// site's scripts and logs it; copy it into CALENDAR_HASH so later runs skip the
+// search. If Airbnb renamed the operation or changed its inputs as well (as in
+// Nov 2026), search the scripts linked from any /rooms/<id> page for
+// "pdpAvailabilityCalendar" to find the new operation and its variables.
 
 import { AIRBNB_ROOM_TYPE, CURRENCY, type BBox } from "../config.js";
 import { get, HttpError, USER_AGENT } from "../lib/http.js";
 
 const API_KEY = "d306zoyjsyarp7ifhu67rjxn52tv0t20"; // public key embedded in airbnb.com
-const CALENDAR_HASH = "be60714ead0a30db42ce6471ddad6a8f3855df0ed400b79282dd0bb8cecdf201";
+const CALENDAR_OPERATION = "PdpAvailabilityCalendarV2ExcludedQuery";
+const CALENDAR_HASH = "f959cc8f218edf71f437ad301eaa2ad974c62c5fbac8cc4a04611813e30d3fbd";
 let calendarHash = CALENDAR_HASH;
 let searchedForHash = false;
 
@@ -122,33 +124,11 @@ export async function searchAll(box: BBox, opts: { checkin?: string; checkout?: 
   return { listings, hitCap: first.cursors.length >= 15 };
 }
 
-const HASH = "[0-9a-f]{64}";
-
-/** Hashes of calendar-like operations named in a piece of Airbnb's site code, likeliest first. */
-function calendarHashesIn(text: string): { name: string; hash: string }[] {
-  if (!/Calendar|Availability/.test(text)) return [];
-  const NAME = "\\w*(?:Calendar|Availability)\\w*";
-  const out: { name: string; hash: string }[] = [];
-  for (const m of text.matchAll(new RegExp(`["'](${NAME})["'][^{}]{0,200}?["'](${HASH})["']`, "g"))) {
-    out.push({ name: m[1], hash: m[2] });
-  }
-  for (const m of text.matchAll(new RegExp(`["'](${HASH})["'][^{}]{0,200}?["'](${NAME})["']`, "g"))) {
-    out.push({ name: m[2], hash: m[1] });
-  }
-  // The exact operation first, then other calendar operations.
-  return out.sort((x, y) => Number(y.name === "PdpAvailabilityCalendar") - Number(x.name === "PdpAvailabilityCalendar"));
-}
-
-function report(how: string, found: { name: string; hash: string }[]) {
-  const seen = [...new Set(found.map((f) => `${f.name}=${f.hash}`))].slice(0, 15);
-  console.log(`  calendar ID search (${how}): ${seen.length ? seen.join(", ") : "nothing found"}`);
-}
-
-/** Calendar hashes named in the scripts a listing page links to. */
-async function hashesFromScripts(listingId: string): Promise<string[]> {
+/** Hashes of Airbnb's calendar operations, read from the scripts a listing page links to. Likeliest first. */
+async function discoverCalendarHashes(listingId: string): Promise<string[]> {
   const html = await get(`https://www.airbnb.com/rooms/${listingId}`);
   const scripts = [...new Set(html.match(/https:\/\/a0\.muscache\.com\/[^"'\s\\<>]+?\.js/g) ?? [])].slice(0, 150);
-  const found = calendarHashesIn(html);
+  const found: { name: string; hash: string }[] = [];
   for (let i = 0; i < scripts.length; i += 10) {
     const texts = await Promise.all(
       scripts.slice(i, i + 10).map((u) =>
@@ -157,60 +137,19 @@ async function hashesFromScripts(listingId: string): Promise<string[]> {
           .catch(() => ""),
       ),
     );
-    for (const text of texts) found.push(...calendarHashesIn(text));
-  }
-  report(`${scripts.length} site scripts`, found);
-  return found.map((f) => f.hash);
-}
-
-/** What Airbnb's own page does in a real browser: the calendar request it sends, and the code it loads. */
-async function hashFromBrowser(listingId: string): Promise<string[]> {
-  const { chromium } = await import("playwright");
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const page = await browser.newPage({ userAgent: USER_AGENT, viewport: { width: 1280, height: 900 } });
-    const requested: { name: string; hash: string }[] = [];
-    const operations = new Set<string>();
-    const scripts: Promise<string>[] = [];
-    page.on("request", (r) => {
-      const m = new RegExp(`/api/v3/(\\w+)/(${HASH})`).exec(r.url());
-      if (!m) return;
-      operations.add(m[1]);
-      if (/Calendar|Availability/.test(m[1])) {
-        requested.push({ name: m[1], hash: m[2] });
-        console.log(`  calendar ID search: the browser asked for ${r.url().slice(0, 700)}`);
+    for (const text of texts) {
+      // {name:'PdpAvailabilityCalendarV2ExcludedQuery',type:'query',operationId:'<hash>',...}
+      for (const m of text.matchAll(/name:["'](PdpAvailabilityCalendar\w*)["'],type:["']query["'],operationId:["']([0-9a-f]{64})["']/g)) {
+        found.push({ name: m[1], hash: m[2] });
       }
-    });
-    page.on("response", (r) => {
-      if (/\.js(\?|$)/.test(r.url())) scripts.push(r.text().catch(() => ""));
-    });
-    await page.goto(`https://www.airbnb.com/rooms/${listingId}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
-    for (let i = 0; i < 25 && !requested.some((f) => f.name === "PdpAvailabilityCalendar"); i++) {
-      await page.mouse.wheel(0, 1200);
-      await page.waitForTimeout(1000);
     }
-    const title = await page.title().catch(() => "");
-    const loaded = await Promise.all(scripts);
-    const found = [...requested, ...loaded.flatMap(calendarHashesIn), ...calendarHashesIn(await page.content())];
-    console.log(`  calendar ID search: browser page "${title}", ${loaded.length} scripts, requests: ${[...operations].join(" ") || "none"}`);
-    report("browser", found);
-    return found.map((f) => f.hash);
-  } finally {
-    await browser.close();
   }
-}
-
-async function discoverCalendarHashes(listingId: string): Promise<string[]> {
-  const found: string[] = [];
-  for (const [how, find] of [["site scripts", hashesFromScripts], ["browser", hashFromBrowser]] as const) {
-    try {
-      found.push(...(await find(listingId)));
-    } catch (err) {
-      console.warn(`  calendar ID search (${how}) failed: ${(err as Error).message.split("\n")[0]}`);
-    }
-    if (found.some((h) => h !== calendarHash)) break;
-  }
-  return [...new Set(found)].filter((h) => h !== calendarHash);
+  console.log(
+    `  calendar ID search: ${scripts.length} site scripts read, found ` +
+      (found.map((f) => `${f.name}=${f.hash}`).join(", ") || "nothing"),
+  );
+  found.sort((x, y) => Number(y.name === CALENDAR_OPERATION) - Number(x.name === CALENDAR_OPERATION));
+  return [...new Set(found.map((f) => f.hash))].filter((h) => h !== calendarHash);
 }
 
 export async function calendar(listingId: string, from: string): Promise<CalendarDay[]> {
@@ -221,7 +160,11 @@ export async function calendar(listingId: string, from: string): Promise<Calenda
     if (!(err instanceof HttpError && err.status === 400) || searchedForHash) throw err;
     searchedForHash = true;
     console.warn(`  Airbnb refused the calendar request (${err.message}); looking for its new calendar ID`);
-    for (const hash of (await discoverCalendarHashes(listingId)).slice(0, 8)) {
+    const candidates = await discoverCalendarHashes(listingId).catch((e) => {
+      console.warn(`  calendar ID search failed: ${(e as Error).message}`);
+      return [] as string[];
+    });
+    for (const hash of candidates.slice(0, 5)) {
       try {
         const days = await fetchCalendar(listingId, from, hash);
         calendarHash = hash;
@@ -238,17 +181,18 @@ export async function calendar(listingId: string, from: string): Promise<Calenda
 async function fetchCalendar(listingId: string, from: string, hash: string): Promise<CalendarDay[]> {
   const [year, month] = from.split("-").map(Number);
   const variables = {
-    request: { count: 12, listingId, month, year, returnPropertyLevelCalendarIfApplicable: false },
+    listingId: Buffer.from(`DemandStayListing:${listingId}`).toString("base64"),
+    input: { count: 12, month, year, returnPropertyLevelCalendarIfApplicable: false },
   };
   const extensions = { persistedQuery: { version: 1, sha256Hash: hash } };
   const url =
-    `https://www.airbnb.com/api/v3/PdpAvailabilityCalendar/${hash}` +
-    `?operationName=PdpAvailabilityCalendar&locale=en&currency=${CURRENCY}` +
+    `https://www.airbnb.com/api/v3/${CALENDAR_OPERATION}/${hash}` +
+    `?operationName=${CALENDAR_OPERATION}&locale=en&currency=${CURRENCY}` +
     `&variables=${encodeURIComponent(JSON.stringify(variables))}` +
     `&extensions=${encodeURIComponent(JSON.stringify(extensions))}`;
 
   const json = JSON.parse(await get(url, { "X-Airbnb-API-Key": API_KEY }));
-  const months = json?.data?.merlin?.pdpAvailabilityCalendar?.calendarMonths;
+  const months = json?.data?.node?.pdpAvailabilityCalendar?.calendarMonths;
   if (!months) {
     throw new Error(`Airbnb calendar ${listingId}: ${JSON.stringify(json?.errors ?? json).slice(0, 200)}`);
   }
