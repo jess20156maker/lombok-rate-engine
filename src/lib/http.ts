@@ -15,20 +15,33 @@ async function pace() {
   lastRequest = Date.now();
 }
 
-/** GET with pacing and backoff. Retries on 429/5xx and network errors. */
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    url: string,
+    public body: string,
+  ) {
+    super(`HTTP ${status} for ${url.slice(0, 120)}${body ? `: ${body.slice(0, 200)}` : ""}`);
+  }
+}
+
+/** GET with pacing and backoff. Retries on 429/5xx and network errors; other errors fail at once. */
 export async function get(url: string, headers: Record<string, string> = {}): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     await pace();
+    let res: Response;
     try {
-      const res = await fetch(url, {
+      res = await fetch(url, {
         headers: { "User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9", ...headers },
       });
-      if (res.ok) return await res.text();
-      if (attempt >= 4 || (res.status < 500 && res.status !== 429)) {
-        throw new Error(`HTTP ${res.status} for ${url.slice(0, 120)}`);
-      }
     } catch (err) {
       if (attempt >= 4) throw err;
+      await sleep(2 ** attempt * 5000);
+      continue;
+    }
+    if (res.ok) return await res.text();
+    if (attempt >= 4 || (res.status < 500 && res.status !== 429)) {
+      throw new HttpError(res.status, url, await res.text().catch(() => ""));
     }
     await sleep(2 ** attempt * 5000);
   }

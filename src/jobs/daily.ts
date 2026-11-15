@@ -53,6 +53,11 @@ for (const l of active) {
   } catch (err) {
     failures.push(l.id);
     console.warn(`  calendar ${l.id} failed: ${(err as Error).message}`);
+    // Nothing works at all: stop now, loudly, rather than grind through every listing.
+    if (fetched === 0 && failures.length >= 20) {
+      console.error("The first 20 Airbnb calendars all failed: Airbnb has probably changed its site. Stopping.");
+      process.exit(1);
+    }
     continue;
   }
   if (++fetched % 25 === 0) {
